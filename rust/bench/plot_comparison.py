@@ -4,14 +4,17 @@ import json
 from pathlib import Path
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "demo"))
+from glass import figure_material
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, FixedLocator
 
 ROOT = Path(__file__).resolve().parents[2]
-BG, FG, MUTED, GRID = '#0c1413', '#f0f5ef', '#a2b2a8', '#33403a'
-COLORS = {'turbotokens': '#b9f582', 'ccusage': '#91b9ee', 'tokscale': '#e9b877'}
+BG, FG, MUTED, GRID = '#edf3fa', '#172b4d', '#516681', '#c4d4e7'
+COLORS = {'turbotokens': '#0865ce', 'ccusage': '#7959aa', 'tokscale': '#137f79'}
 
 
 def seconds(value):
@@ -31,7 +34,7 @@ def render(source, output):
                          'text.color': FG, 'axes.labelcolor': MUTED,
                          'xtick.color': MUTED, 'ytick.color': MUTED})
     fig, ax = plt.subplots(figsize=(12, 6.6), facecolor=BG)
-    ax.set_facecolor(BG)
+    ax.set_facecolor('none')
     fig.subplots_adjust(left=.105, right=.80, top=.71, bottom=.21)
     fig.text(.055, .925, 'REPEATED REPORTS / NATIVE ARM64', color=COLORS['turbotokens'], size=12, weight='bold')
     fig.text(.055, .845, 'Daily reports, without the wait.' if daily else 'Monthly reports. Three native CLIs.', size=26, weight='bold')
@@ -60,6 +63,7 @@ def render(source, output):
     versions = '  /  '.join(data['tools'][name]['version'] for name in names)
     fig.text(.055, .095, versions, color=MUTED, size=10)
     fig.text(.055, .051, 'M1 Max · 6 synthetic files per size · logarithmic time axis · all four token categories verified', color=MUTED, size=10)
+    figure_material(fig)
     fig.savefig(output, dpi=180, facecolor=BG)
     plt.close(fig)
 
@@ -69,7 +73,7 @@ def render_monthly(data, output):
     names = sorted(data['tools'], key=lambda name: row['median_seconds'][name])
     values = [row['median_seconds'][name] for name in names]
     fig, ax = plt.subplots(figsize=(12, 5.8), facecolor=BG)
-    ax.set_facecolor(BG)
+    ax.set_facecolor('none')
     fig.subplots_adjust(left=.19, right=.91, top=.68, bottom=.22)
     fig.text(.055, .91, 'MONTHLY REPORTS / NATIVE ARM64', color=COLORS['turbotokens'], size=12, weight='bold')
     fig.text(.055, .82, '3.63 GB of logs. Three native CLIs.', color=FG, size=26, weight='bold')
@@ -90,6 +94,7 @@ def render_monthly(data, output):
         spine.set_visible(False)
     fig.text(.055, .105, 'turbotokens 1.1.0 / ccusage 20.0.20 / tokscale 4.15.1', color=MUTED, size=11)
     fig.text(.055, .052, 'M1 Max · 6 synthetic files · JSON output included · all four token categories verified', color=MUTED, size=11)
+    figure_material(fig)
     fig.savefig(output, dpi=180, facecolor=BG)
     plt.close(fig)
 

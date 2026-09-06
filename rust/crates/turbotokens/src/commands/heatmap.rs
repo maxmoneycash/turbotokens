@@ -25,8 +25,8 @@ const LEVEL_COLORS: [Color; 5] = [
     Color::Red,
 ];
 
-/// GitHub-dark cell colors for the SVG, matching the terminal levels.
-const LEVEL_FILLS: [&str; 5] = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"];
+/// Five green intensity levels with contrast on the light glass SVG surface.
+const LEVEL_FILLS: [&str; 5] = ["#dfebed", "#b2dbc9", "#70b998", "#33996e", "#087c51"];
 
 /// One day in the heatmap window.
 #[derive(Debug, Clone, Copy)]
@@ -290,9 +290,7 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
     svg.push_str(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" font-family=\"ui-monospace, Menlo, monospace\">\n"
     ));
-    svg.push_str(&format!(
-        "<rect width=\"{width}\" height=\"{height}\" fill=\"#0c1413\" rx=\"12\"/>\n"
-    ));
+    svg.push_str(super::visual::GLASS);
     let total_tokens: u64 = cells.iter().map(|cell| cell.tokens).sum();
     let total_cost: f64 = cells.iter().map(|cell| cell.cost).sum();
     let total = if by_cost {
@@ -301,12 +299,12 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
         format!("{} tokens", format_number(total_tokens))
     };
     svg.push_str(&format!(
-        "<title>Daily usage · {} to {}</title>\n<text x=\"32\" y=\"38\" font-size=\"20\" fill=\"#f0f5ef\" font-weight=\"700\">Daily usage</text>\n<text x=\"32\" y=\"65\" font-size=\"12\" fill=\"#b9f582\">{total} · {} → {}</text>\n",
+        "<title>Daily usage · {} to {}</title>\n<text x=\"32\" y=\"38\" font-size=\"20\" fill=\"#172b4d\" font-weight=\"700\">Daily usage</text>\n<text x=\"32\" y=\"65\" font-size=\"12\" fill=\"#0865ce\">{total} · {} → {}</text>\n",
         start.format(), end.format(), start.format(), end.format()
     ));
 
     // Month labels above the column where each month starts.
-    svg.push_str("<g fill=\"#a2b2a8\" font-size=\"10\">\n");
+    svg.push_str("<g fill=\"#516681\" font-size=\"10\">\n");
     for (column, label) in month_labels(start, grid_start, columns)
         .into_iter()
         .flatten()
@@ -348,7 +346,7 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
     // Legend: Less [cells] More, bottom right.
     let legend_width = 30 + 5 * SVG_PITCH + 34;
     let legend_x = width - legend_width - 14;
-    svg.push_str("<g font-size=\"10\" fill=\"#a2b2a8\">\n");
+    svg.push_str("<g font-size=\"10\" fill=\"#516681\">\n");
     svg.push_str(&format!(
         "<text x=\"32\" y=\"{}\">turbotokens</text>\n",
         legend_y + 10
@@ -457,8 +455,8 @@ mod tests {
 
         assert!(svg.starts_with("<svg xmlns="));
         assert!(svg.trim_end().ends_with("</svg>"));
-        // 7 day cells + background + 5 legend cells.
-        assert_eq!(svg.matches("<rect").count(), 13);
+        // Each of the seven dates retains its own accessible value tooltip.
+        assert_eq!(svg.matches("<title>2026-").count(), 7);
         assert!(svg.contains(LEVEL_FILLS[4]), "hottest day uses level 4");
         assert!(svg.contains("<title>2026-09-01 · 100 tokens</title>"));
         assert!(svg.contains("Less"));
@@ -491,7 +489,9 @@ mod tests {
         let day = Day::parse("2026-09-01").unwrap();
         let svg = render_svg(&dense_cells(day, day, &[]), false);
         assert!(svg.contains("width=\"460\""));
-        assert!(!svg.contains("x=\"-"));
+        // Filter bounds may extend beyond the canvas; report elements must not.
+        let foreground = svg.replace(crate::commands::visual::GLASS, "");
+        assert!(!foreground.contains("x=\"-"));
         assert!(svg.contains("0 tokens · 2026-09-01 → 2026-09-01"));
     }
 }

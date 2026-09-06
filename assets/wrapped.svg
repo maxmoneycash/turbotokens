@@ -1,40 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" font-family="Menlo, ui-monospace, monospace">
 <title>turbotokens wrapped · 2026</title>
-<rect width="1280" height="640" fill="#0c1413" rx="16"/>
-<path d="M48 40H1232" stroke="#b9f582" stroke-width="3"/>
-<text x="48" y="110" font-size="42" fill="#f0f5ef" font-weight="700">turbotokens</text>
-<text x="352" y="110" font-size="42" fill="#b9f582" font-weight="700">wrapped · 2026</text>
-<text x="48" y="140" font-size="15" fill="#a2b2a8" font-weight="400">Your year in AI coding.</text>
-<text x="48" y="250" font-size="72" fill="#b9f582" font-weight="700">259.0M</text>
-<text x="48" y="278" font-size="16" fill="#a2b2a8" font-weight="400">tokens across 204 active days</text>
-<text x="48" y="350" font-size="56" fill="#91b9ee" font-weight="700">$237.87</text>
-<text x="48" y="378" font-size="16" fill="#a2b2a8" font-weight="400">estimated cost</text>
-<text x="680" y="225" font-size="14" fill="#a2b2a8" font-weight="400">busiest day</text>
+<svg width="100%" height="100%" viewBox="0 0 1280 640" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+  <linearGradient id="glass-sky" x2="1" y2="1"><stop stop-color="#d9e9ff"/><stop offset=".46" stop-color="#f1f6fc"/><stop offset="1" stop-color="#b9d8f6"/></linearGradient>
+  <linearGradient id="glass-wave" x2="1" y2="1"><stop stop-color="#a5c7fb"/><stop offset=".52" stop-color="#6aa8ec"/><stop offset="1" stop-color="#c5eaf0"/></linearGradient>
+  <linearGradient id="glass-frost" x2=".8" y2="1"><stop stop-color="#fff" stop-opacity=".84"/><stop offset=".52" stop-color="#fff" stop-opacity=".59"/><stop offset="1" stop-color="#edf6ff" stop-opacity=".73"/></linearGradient>
+  <linearGradient id="glass-rim" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".35"/><stop offset=".68" stop-color="#8daed4" stop-opacity=".45"/><stop offset="1" stop-color="#fff"/></linearGradient>
+  <filter id="glass-soft" x="-.5" y="-.5" width="2" height="2" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="24"/></filter>
+  <filter id="glass-shadow" x="-.1" y="-.2" width="1.2" height="1.4" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="10"/></filter>
+  <clipPath id="glass-clip"><rect width="1280" height="640" rx="42"/></clipPath>
+</defs>
+<g clip-path="url(#glass-clip)">
+  <rect width="1280" height="640" fill="url(#glass-sky)"/>
+  <path d="M860-80C700 140 1020 300 730 710H1380V-80Z" fill="url(#glass-wave)"/>
+  <path d="M980-70C790 175 1190 325 840 730" fill="none" stroke="#fff" stroke-opacity=".52" stroke-width="3"/>
+  <g filter="url(#glass-soft)"><ellipse cx="160" cy="580" rx="350" ry="125" fill="#b5cfef"/><ellipse cx="1150" cy="160" rx="230" ry="190" fill="#b8cbf4"/><path d="M1050-50C800 200 1150 480 900 710" stroke="#75b8de" stroke-width="80" fill="none"/></g>
+  <rect x="15" y="22" width="1250" height="606" rx="36" fill="#396697" opacity=".18" filter="url(#glass-shadow)"/>
+  <rect x="12" y="12" width="1256" height="616" rx="34" fill="url(#glass-frost)" stroke="url(#glass-rim)" stroke-width="2"/>
+  <rect x="15" y="15" width="1250" height="610" rx="31" fill="none" stroke="#fff" stroke-opacity=".48"/>
+  <path d="M48 14H1232" stroke="#fff" stroke-opacity=".85" stroke-width="2"/>
+</g>
+</svg>
+<rect x="32" y="174" width="598" height="261" rx="24" fill="#fff" fill-opacity=".36" stroke="#fff" stroke-opacity=".8"/>
+<text x="48" y="110" font-size="42" fill="#172b4d" font-weight="700">turbotokens</text>
+<text x="352" y="110" font-size="42" fill="#0865ce" font-weight="700">wrapped · 2026</text>
+<text x="48" y="140" font-size="15" fill="#516681" font-weight="400">Your year in AI coding.</text>
+<text x="48" y="250" font-size="72" fill="#0865ce" font-weight="700">259.0M</text>
+<text x="48" y="278" font-size="16" fill="#516681" font-weight="400">tokens across 204 active days</text>
+<text x="48" y="350" font-size="56" fill="#087f79" font-weight="700">$237.87</text>
+<text x="48" y="378" font-size="16" fill="#516681" font-weight="400">estimated cost</text>
+<text x="680" y="225" font-size="14" fill="#516681" font-weight="400">busiest day</text>
 <g><title>2026-08-01 · 2.1M</title>
-<text x="680" y="249" font-size="20" fill="#f0f5ef" font-weight="400">2026-08-01 · 2.1M</text>
+<text x="680" y="249" font-size="20" fill="#172b4d" font-weight="400">2026-08-01 · 2.1M</text>
 </g>
-<text x="680" y="277" font-size="14" fill="#a2b2a8" font-weight="400">longest streak</text>
+<text x="680" y="277" font-size="14" fill="#516681" font-weight="400">longest streak</text>
 <g><title>19 days · 2026-02-02 → 2026-02-20</title>
-<text x="680" y="301" font-size="20" fill="#f0f5ef" font-weight="400">19 days · 2026-02-02 → 2026-02-20</text>
+<text x="680" y="301" font-size="20" fill="#172b4d" font-weight="400">19 days · 2026-02-02 → 2026-02-20</text>
 </g>
-<text x="680" y="329" font-size="14" fill="#a2b2a8" font-weight="400">top model</text>
+<text x="680" y="329" font-size="14" fill="#516681" font-weight="400">top model</text>
 <g><title>claude-sonnet-4-20250514</title>
-<text x="680" y="353" font-size="20" fill="#f0f5ef" font-weight="400">claude-sonnet-4-20250514</text>
+<text x="680" y="353" font-size="20" fill="#172b4d" font-weight="400">claude-sonnet-4-20250514</text>
 </g>
-<text x="680" y="381" font-size="14" fill="#a2b2a8" font-weight="400">top project</text>
+<text x="680" y="381" font-size="14" fill="#516681" font-weight="400">top project</text>
 <g><title>webapp</title>
-<text x="680" y="405" font-size="20" fill="#f0f5ef" font-weight="400">webapp</text>
+<text x="680" y="405" font-size="20" fill="#172b4d" font-weight="400">webapp</text>
 </g>
-<text x="680" y="433" font-size="14" fill="#a2b2a8" font-weight="400">favorite day</text>
+<text x="680" y="433" font-size="14" fill="#516681" font-weight="400">favorite day</text>
 <g><title>Friday</title>
-<text x="680" y="457" font-size="20" fill="#f0f5ef" font-weight="400">Friday</text>
+<text x="680" y="457" font-size="20" fill="#172b4d" font-weight="400">Friday</text>
 </g>
-<rect x="48" y="500" width="1031" height="28" fill="#b9f582"/>
-<rect x="1079" y="500" width="153" height="28" fill="#91b9ee"/>
-<rect x="48" y="500" width="1184" height="28" fill="none" stroke="#a2b2a8" stroke-width="1" rx="6"/>
-<rect x="48" y="549" width="12" height="12" rx="3" fill="#b9f582"/>
-<text x="66" y="560" font-size="14" fill="#f0f5ef" font-weight="400">claude 87%</text>
-<rect x="284" y="549" width="12" height="12" rx="3" fill="#91b9ee"/>
-<text x="302" y="560" font-size="14" fill="#f0f5ef" font-weight="400">codex 13%</text>
-<text x="48" y="608" font-size="13" fill="#a2b2a8" font-weight="400">turbotokens · generated from local usage logs</text>
+<rect x="48" y="500" width="1031" height="28" fill="#0865ce"/>
+<rect x="1079" y="500" width="153" height="28" fill="#087f79"/>
+<rect x="48" y="500" width="1184" height="28" fill="none" stroke="#516681" stroke-width="1" rx="6"/>
+<rect x="48" y="549" width="12" height="12" rx="3" fill="#0865ce"/>
+<text x="66" y="560" font-size="14" fill="#172b4d" font-weight="400">claude 87%</text>
+<rect x="284" y="549" width="12" height="12" rx="3" fill="#087f79"/>
+<text x="302" y="560" font-size="14" fill="#172b4d" font-weight="400">codex 13%</text>
+<text x="48" y="608" font-size="13" fill="#516681" font-weight="400">turbotokens · generated from local usage logs</text>
 </svg>

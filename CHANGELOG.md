@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 · 2026-09-06
+
+- Restyle heatmap and wrapped SVG exports with a shared Liquid Glass inspired material, brighter edges, and dark text. Report data and terminal output are unchanged.
+- Apply the same material to README artwork, comparison charts, terminal previews, and the live recording.
+
 ## 1.1.1 · 2026-09-06
 
 - Fix a panic when opening `turbotokens completions --help`. All declared help pages now have a rendering regression test.

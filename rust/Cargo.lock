@@ -880,7 +880,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "memchr",
  "mimalloc",
@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-all"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "serde",
@@ -947,7 +947,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-amp"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -959,7 +959,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-antigravity"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "jiff",
@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-claude"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "memchr",
@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-codebuff"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde_json",
@@ -999,7 +999,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-codex"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "compact_str",
  "insta",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-common"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "memchr",
  "serde",
@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-copilot"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1039,7 +1039,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-droid"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde_json",
@@ -1050,7 +1050,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-gemini"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1062,7 +1062,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-goose"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1075,7 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-grok"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1087,7 +1087,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-hermes"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde_json",
@@ -1099,7 +1099,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-kilo"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1112,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-kimi"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1124,7 +1124,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-openclaw"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1137,7 +1137,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-opencode"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "jiff",
@@ -1151,7 +1151,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-pi"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-qwen"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "jiff",
  "serde",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-adapter-zcode"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "jiff",
@@ -1188,11 +1188,11 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-cli"
-version = "1.1.1"
+version = "1.1.2"
 
 [[package]]
 name = "turbotokens-cli-parser"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "serde_json",
@@ -1204,7 +1204,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-config"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "schemars",
@@ -1217,7 +1217,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-core"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "jiff",
@@ -1234,7 +1234,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-terminal"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "insta",
  "terminal_size",
@@ -1243,7 +1243,7 @@ dependencies = [
 
 [[package]]
 name = "turbotokens-test-support"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "assert_fs",
  "jiff",

@@ -1,6 +1,9 @@
 //! Shared helpers for the visual commands (`heatmap`, `wrapped`): civil date
 //! math (std-only, no calendar crate on these paths) and SVG text escaping.
 
+/// Shared, self-contained glass material for native SVG exports and demo renderers.
+pub(super) const GLASS: &str = include_str!("glass.svg");
+
 /// A civil day, stored as days since the Unix epoch.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(super) struct Day(i64);

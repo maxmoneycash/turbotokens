@@ -7,6 +7,7 @@ Usage: render_svg.py in.cast out.svg [cols rows font_size trim]
 """
 import json, sys
 import pyte
+from glass import backdrop
 
 CAST, OUT = sys.argv[1], sys.argv[2]
 COLS = int(sys.argv[3]) if len(sys.argv) > 3 else 100
@@ -14,16 +15,16 @@ ROWS = int(sys.argv[4]) if len(sys.argv) > 4 else 32
 FONT = int(sys.argv[5]) if len(sys.argv) > 5 else 15
 TRIM = len(sys.argv) > 6 and sys.argv[6] == "trim"
 
-BG = "#0c1413"
-FG = "#f0f5ef"
+BG = "#edf3fa"
+FG = "#172b4d"
 BASE16 = {
-    "black": "#151724", "red": "#f7768e", "green": "#b9f582",
-    "yellow": "#e0af68", "brown": "#e0af68", "blue": "#91b9ee", "magenta": "#bb9af7",
-    "cyan": "#7dcfff", "white": "#a9b1d6",
-    "brightblack": "#64786d", "brightred": "#f7768e",
-    "brightgreen": "#b9f582", "brightyellow": "#e0af68",
-    "brightblue": "#91b9ee", "brightmagenta": "#bb9af7",
-    "brightcyan": "#7dcfff", "brightwhite": "#f0f5ef",
+    "black": "#172b4d", "red": "#b83250", "green": "#087c51",
+    "yellow": "#99611b", "brown": "#99611b", "blue": "#0865ce", "magenta": "#7254bb",
+    "cyan": "#177897", "white": "#334d6d",
+    "brightblack": "#516681", "brightred": "#b83250",
+    "brightgreen": "#087c51", "brightyellow": "#99611b",
+    "brightblue": "#0865ce", "brightmagenta": "#7254bb",
+    "brightcyan": "#177897", "brightwhite": "#172b4d",
 }
 FONT_STACK = "Menlo, 'SF Mono', 'Cascadia Code', Consolas, monospace"
 
@@ -48,7 +49,11 @@ def resolve(c, default):
     if isinstance(c, str) and len(c) == 6:
         try:
             int(c, 16)
-            return f"#{c}"
+            channels = [int(c[i:i+2], 16) for i in (0, 2, 4)]
+            luminance = sum(v * w for v, w in zip(channels, (.2126, .7152, .0722)))
+            if luminance > 145:
+                channels = [round(v * 120 / luminance) for v in channels]
+            return "#%02x%02x%02x" % tuple(channels)
         except ValueError:
             pass
     return default
@@ -63,20 +68,22 @@ with open(CAST) as f:
             ev = json.loads(line)
         except ValueError:
             continue
+        if len(sys.argv) > 7 and ev[0] > float(sys.argv[7]):
+            break
         if len(ev) >= 3 and ev[1] == "o":
             stream.feed(ev[2])
 
 disp = screen.display
-nrows = ROWS
+nrows = 33 if len(sys.argv) > 6 and sys.argv[6] == "fixed" else ROWS
 if TRIM:
     nrows = max((i for i, row in enumerate(disp) if row.strip()), default=0) + 1
 
 # geometry: Menlo advance is 0.6em; rows get 1.33em pitch
 CW = FONT * 0.6
 LH = round(FONT * 1.34)
-PADX, PADY = round(FONT * 1.1), round(FONT * 0.9)
+PADX, PADY = 28, 62
 W = round(COLS * CW) + PADX * 2
-H = nrows * LH + PADY * 2
+H = nrows * LH + PADY + 28
 LINE_W = max(1.2, FONT * 0.09)
 
 def esc(s):
@@ -85,7 +92,9 @@ def esc(s):
 parts = []
 parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
              f'viewBox="0 0 {W} {H}" font-family="{FONT_STACK}" font-size="{FONT}">')
-parts.append(f'<rect width="{W}" height="{H}" rx="6" fill="{BG}"/>')
+parts.append('<title>turbotokens live dashboard, synthetic usage</title>')
+parts.append(backdrop())
+parts.append('<text x="28" y="34" fill="#516681" font-size="14">$ turbotokens live --offline</text>')
 
 ARCS = {  # quarter ellipse inscribed in the cell: (start_angle, end_angle, sweep)
     "╭": (0, 90), "╮": (90, 180), "╯": (180, 270), "╰": (270, 360),

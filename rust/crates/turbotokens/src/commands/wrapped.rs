@@ -403,16 +403,15 @@ fn stats_json(stats: &WrappedStats) -> Value {
 
 const SVG_WIDTH: i64 = 1280;
 const SVG_HEIGHT: i64 = 640;
-const BG: &str = "#0c1413";
-const FG: &str = "#f0f5ef";
-const MUTED: &str = "#a2b2a8";
-const BLUE: &str = "#b9f582";
-const GREEN: &str = "#91b9ee";
-const YELLOW: &str = "#e0af68";
-const RED: &str = "#f7768e";
-const PURPLE: &str = "#bb9af7";
-const CYAN: &str = "#7dcfff";
-const ORANGE: &str = "#ff9e64";
+const FG: &str = "#172b4d";
+const MUTED: &str = "#516681";
+const BLUE: &str = "#0865ce";
+const GREEN: &str = "#087f79";
+const YELLOW: &str = "#9c6518";
+const RED: &str = "#c4435d";
+const PURPLE: &str = "#7254bb";
+const CYAN: &str = "#16799e";
+const ORANGE: &str = "#b45c20";
 
 const AGENT_COLORS: [&str; 7] = [BLUE, GREEN, YELLOW, RED, PURPLE, CYAN, ORANGE];
 
@@ -444,10 +443,11 @@ fn render_svg(stats: &WrappedStats) -> String {
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{SVG_WIDTH}\" height=\"{height}\" viewBox=\"0 0 {SVG_WIDTH} {height}\" font-family=\"Menlo, ui-monospace, monospace\">\n"
     ));
     svg.push_str(&format!(
-        "<title>turbotokens wrapped · {}</title>\n<rect width=\"{SVG_WIDTH}\" height=\"{height}\" fill=\"{BG}\" rx=\"16\"/>\n",
+        "<title>turbotokens wrapped · {}</title>\n",
         stats.year
     ));
-    svg.push_str("<path d=\"M48 40H1232\" stroke=\"#b9f582\" stroke-width=\"3\"/>\n");
+    svg.push_str(super::visual::GLASS);
+    svg.push_str("<rect x=\"32\" y=\"174\" width=\"598\" height=\"261\" rx=\"24\" fill=\"#fff\" fill-opacity=\".36\" stroke=\"#fff\" stroke-opacity=\".8\"/>\n");
 
     svg.push_str(&svg_text(48, 110, 42, FG, "700", "turbotokens"));
     svg.push_str(&svg_text(
@@ -753,7 +753,7 @@ mod tests {
 
         assert!(svg.starts_with("<svg xmlns="));
         assert!(svg.contains("width=\"1280\" height=\"640\""));
-        assert!(svg.contains(BG));
+        assert!(svg.contains(crate::commands::visual::GLASS));
         assert!(svg.contains("Menlo"));
         assert!(svg.trim_end().ends_with("</svg>"));
         assert!(svg.contains("wrapped · 2026"));

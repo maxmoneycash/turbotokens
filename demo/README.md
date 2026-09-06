@@ -1,5 +1,7 @@
 # README visuals
 
+All current graphics use a shared Liquid Glass inspired SVG material: translucent layers over a soft blue background, reflective edges, and dark foreground text. The native exports embed the same self-contained material from `rust/crates/turbotokens/src/commands/glass.svg`; no fonts, images, or network resources are required at runtime.
+
 The product screenshots and SVG exports use generated Claude Code and Codex logs. They contain no personal usage history. The chart numbers come from the separately recorded [benchmarks](../rust/bench/README.md).
 
 ## Capture the product
@@ -25,11 +27,14 @@ rsvg-convert -z 2 assets/daily-report.svg -o assets/daily-report.png
 python3 demo/render_svg.py demo/fixtures/live.cast assets/live-dashboard.svg 104 40 15 trim
 rsvg-convert -z 2 assets/live-dashboard.svg -o assets/live-dashboard.png
 
-agg --theme github-dark --font-size 16 --speed 1 --fps-cap 10 \
-  --last-frame-duration 2 demo/fixtures/live.cast assets/live-demo.gif
+python3 demo/render_gif.py demo/fixtures/live.cast assets/live-demo.gif
 ```
 
-`rsvg-convert` and `agg` are optional asset-generation tools. They are not runtime dependencies of turbotokens.
+The animation renderer needs pyte, Pillow, and `rsvg-convert`. It samples the original recording at two frames per second, preserves elapsed time, and adds a two-second final hold. A shared GIF palette keeps the glass background steady.
+
+These are optional asset-generation tools. They are not runtime dependencies of turbotokens.
+
+The benchmark plotters also use this material through `demo/glass.py`. They require matplotlib and `rsvg-convert`; the checked-in measurements remain the source of every plotted value.
 
 ## Brand and social image
 
