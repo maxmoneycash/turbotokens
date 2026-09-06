@@ -1,75 +1,72 @@
 #!/usr/bin/env node
-// postinstall: download the turbotokens release binary for this platform.
-// Picks the GitHub release asset matching os/arch, extracts it into bin/.
+// Download the matching release asset and verify it before extraction.
 "use strict";
 
 const { execFileSync } = require("child_process");
+const { createHash } = require("crypto");
 const fs = require("fs");
 const https = require("https");
 const os = require("os");
 const path = require("path");
-
+const { pipeline } = require("stream");
+const { promisify } = require("util");
 const pkg = require("./package.json");
+const checksums = require("./checksums.json");
 const REPO = "maxmoneycash/turbotokens";
 
-const ASSETS = {
-  "darwin-arm64": `turbotokens-macos-arm64.tar.gz`,
-  "darwin-x64": `turbotokens-macos-x64.tar.gz`,
-  "linux-x64": `turbotokens-linux-x64.tar.gz`,
-  "linux-arm64": `turbotokens-linux-arm64.tar.gz`,
-  "win32-x64": `turbotokens-windows-x64.zip`,
-  "win32-arm64": `turbotokens-windows-arm64.zip`,
-};
+const platforms = { darwin: "macos", linux: "linux", win32: "windows" };
+const platform = platforms[process.platform];
+const arch = process.arch;
+const extension = process.platform === "win32" ? "zip" : "tar.gz";
+const asset = `turbotokens-${platform}-${arch}.${extension}`;
 
-function fail(msg) {
-  console.error(`turbotokens: ${msg}`);
-  process.exit(1);
-}
-
-const key = `${process.platform}-${process.arch}`;
-const asset = ASSETS[key];
-if (!asset) fail(`no prebuilt binary for ${key} — install from source: https://github.com/${REPO}`);
-
-const url = `https://github.com/${REPO}/releases/download/v${pkg.version}/${asset}`;
-const binDir = path.join(__dirname, "bin");
-fs.mkdirSync(binDir, { recursive: true });
-const archive = path.join(os.tmpdir(), asset);
-
-console.log(`turbotokens: downloading ${url}`);
-https
-  .get(url, (res) => {
-    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-      https.get(res.headers.location, handle).on("error", (e) => fail(e.message));
-      return;
-    }
-    handle(res);
-  })
-  .on("error", (e) => fail(e.message));
-
-function handle(res) {
-  if (res.statusCode !== 200) fail(`download failed: HTTP ${res.statusCode}`);
-  const out = fs.createWriteStream(archive);
-  res.pipe(out);
-  out.on("finish", () => {
-    out.close(() => {
-      try {
-        if (asset.endsWith(".zip")) {
-          // bsdtar ships with Windows 10+ and handles zip fine.
-          execFileSync("tar", ["-xf", archive, "-C", binDir, "turbotokens.exe"], {
-            stdio: "inherit",
-          });
-        } else {
-          execFileSync("tar", ["-xzf", archive, "-C", binDir, "turbotokens"], {
-            stdio: "inherit",
-          });
-          fs.chmodSync(path.join(binDir, "turbotokens"), 0o755);
-        }
-      } catch (e) {
-        fail(`extract failed: ${e.message}`);
-      } finally {
-        fs.rmSync(archive, { force: true });
+function download(url, destination, redirects = 5) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        response.resume();
+        if (!redirects) return reject(new Error("too many download redirects"));
+        const next = new URL(response.headers.location, url);
+        if (next.protocol !== "https:") return reject(new Error("download redirect must use HTTPS"));
+        download(next, destination, redirects - 1).then(resolve, reject);
+        return;
       }
-      console.log("turbotokens: installed to " + binDir);
+      if (response.statusCode !== 200) {
+        response.resume();
+        return reject(new Error(`download failed: HTTP ${response.statusCode}`));
+      }
+      promisify(pipeline)(response, fs.createWriteStream(destination)).then(resolve, reject);
     });
+    request.setTimeout(30000, () => request.destroy(new Error("download timed out")));
+    request.on("error", reject);
   });
 }
+
+async function install() {
+  if (!platform || !["arm64", "x64"].includes(arch) || !checksums[asset]) {
+    throw new Error(`no prebuilt binary for ${process.platform}-${arch}; build from source: https://github.com/${REPO}`);
+  }
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "turbotokens-"));
+  try {
+    const archive = path.join(temporary, asset);
+    const url = `https://github.com/${REPO}/releases/download/v${pkg.version}/${asset}`;
+    console.log(`turbotokens: downloading v${pkg.version} for ${platform}-${arch}`);
+    await download(url, archive);
+    const digest = createHash("sha256").update(fs.readFileSync(archive)).digest("hex");
+    if (digest !== checksums[asset]) throw new Error(`checksum mismatch for ${asset}`);
+    const binary = process.platform === "win32" ? "turbotokens.exe" : "turbotokens";
+    const destination = path.join(__dirname, "vendor");
+    fs.mkdirSync(destination, { recursive: true });
+    execFileSync("tar", [extension === "zip" ? "-xf" : "-xzf", archive, "-C", temporary, binary], { stdio: "inherit" });
+    if (process.platform !== "win32") fs.chmodSync(path.join(temporary, binary), 0o755);
+    fs.copyFileSync(path.join(temporary, binary), path.join(destination, binary));
+    console.log(`turbotokens: installed v${pkg.version}`);
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+}
+
+install().catch((error) => {
+  console.error(`turbotokens: ${error.message}`);
+  process.exitCode = 1;
+});

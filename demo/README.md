@@ -1,6 +1,6 @@
 # Recording a demo
 
-Three steps, two minutes.
+Record the CLI against generated usage data.
 
 ## 1. Fresh fake data + a live feed
 
@@ -16,7 +16,7 @@ demo/feed.sh                                  # tab 2 — keeps appending
 ```bash
 turbotokens doctor
 turbotokens claude daily
-turbotokens live        # the money shot — let it run 15-20s
+turbotokens live        # let it run 15-20s
 ```
 
 ## 3. Reset for another take
@@ -68,3 +68,23 @@ There are also two homegrown renderers kept for reference:
 `render_svg.py` (cast → flat SVG, vector box-drawing, grid-pinned text)
 and `render_cast.py` (cast → PNG via Pillow). The README images use the
 freeze pipeline above.
+
+## Heatmap and wrapped previews
+
+The sample exports in `demo/fixtures/` preserve the illustrative data used for the README. Generate the light previews with:
+
+```sh
+python3 demo/light_svg.py demo/fixtures/heatmap.svg assets/heatmap.svg
+python3 demo/light_svg.py demo/fixtures/wrapped.svg assets/wrapped.svg
+```
+
+The preview renderer adjusts palette, type, spacing, and labels. It does not change the statistics. These are README presentation assets; the CLI exports retain their dark theme. To inspect the SVGs without a browser, use `rsvg-convert` to render PNGs.
+
+The performance chart has its own [benchmark and rendering workflow](../rust/bench/README.md).
+
+The daily report uses a plain-text capture from v1.1.0 with synthetic data, saved in `fixtures/daily.txt`. Re-render it with continuous vector borders:
+
+```sh
+python3 demo/render_text.py demo/fixtures/daily.txt assets/daily-report.svg
+rsvg-convert -z 2 assets/daily-report.svg -o assets/daily-report.png
+```

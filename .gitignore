@@ -9,3 +9,6 @@ target/
 # Local env
 .env
 .envrc
+
+# Python demo and packaging checks
+__pycache__/

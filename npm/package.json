@@ -1,7 +1,7 @@
 {
   "name": "turbotokens",
   "version": "1.1.0",
-  "description": "Real-time token and cost telemetry for AI coding agents — Claude Code, Codex, and 14 more. Single Rust binary, no runtime.",
+  "description": "Token usage and estimated cost reports for AI coding agents. Powered by a native Rust binary.",
   "keywords": [
     "claude-code",
     "codex",
@@ -17,16 +17,19 @@
     "type": "git",
     "url": "git+https://github.com/maxmoneycash/turbotokens.git"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bin": {
-    "turbotokens": "bin/turbotokens"
+    "turbotokens": "bin/turbotokens.js"
   },
   "scripts": {
     "postinstall": "node install.js"
   },
   "files": [
     "install.js",
-    "bin"
+    "checksums.json",
+    "bin/turbotokens.js",
+    "LICENSE",
+    "README.md"
   ],
   "engines": {
     "node": ">=14"

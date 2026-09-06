@@ -1,87 +1,56 @@
 #!/usr/bin/env python3
-"""Render assets/scaling-chart.png — how long it takes to count N tokens.
-
-Five rows (1B-50B tokens), three tools each, log-scale time axis.
-Usage: plot_scaling.py results.csv out.png
-"""
+"""Render the measured cache benchmark: plot_scaling.py results.json out.png."""
+import json
+from pathlib import Path
 import sys
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+from matplotlib.ticker import MaxNLocator
 
-csv_path, out_path = sys.argv[1], sys.argv[2]
 
-syn = {}
-for line in open(csv_path):
-    if line.startswith("tool"):
-        continue
-    tool, tokens, _b, secs = line.strip().split(",")
-    syn[(tool, int(tokens) // 1_000_000_000)] = float(secs)
+def main():
+    result = json.loads(Path(sys.argv[1]).read_text())
+    rows = result['datasets']
+    ink, muted, rule, green = '#202a27', '#59655f', '#dce3df', '#176b4b'
+    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 12, 'text.color': ink, 'axes.labelcolor': muted, 'xtick.color': muted, 'ytick.color': muted, 'figure.facecolor': '#ffffff', 'axes.facecolor': '#ffffff', 'svg.fonttype': 'none'})
+    fig = plt.figure(figsize=(12, 6.4), dpi=160)
+    fig.text(.065, .91, 'Reports over growing log histories', fontsize=24, weight='bold')
+    fig.text(.065, .854, f"turbotokens {result['version'].split()[-1]}  /  Claude daily report  /  median of {result['runs']} runs", fontsize=12, color=muted)
+    ax = fig.add_axes([.08, .245, .51, .50])
+    sizes = [row['bytes'] / 1e9 for row in rows]
+    for mode, color, label in [('uncached', '#7c8e84', 'Cache disabled'), ('cached', green, 'Cache enabled')]:
+        values = [row['median_seconds'][mode] for row in rows]
+        ax.plot(sizes, values, color=color, linewidth=2.5, marker='o', markersize=6, label=label)
+    ax.set_xlim(0, max(sizes) * 1.06)
+    ax.set_ylim(0, max(row['median_seconds']['uncached'] for row in rows) * 1.15)
+    ax.yaxis.set_major_locator(MaxNLocator(4, min_n_ticks=4))
+    ax.set_xlabel('Log size (GB)', labelpad=12)
+    ax.set_ylabel('Report time (seconds)', labelpad=10)
+    ax.spines[['top', 'right', 'left']].set_visible(False)
+    ax.spines['bottom'].set_color(rule)
+    ax.tick_params(length=0, pad=10)
+    ax.grid(axis='y', color=rule, linewidth=.7)
+    ax.set_axisbelow(True)
+    ax.legend(loc='upper left', frameon=False, fontsize=11, handlelength=2)
+    # A small table keeps the cached values legible near the zero baseline.
+    table = fig.add_axes([.66, .245, .28, .5])
+    table.axis('off')
+    for x, label in [(0, 'Log size'), (.60, 'Disabled'), (1, 'Enabled')]:
+        table.text(x, .96, label, ha='left' if x == 0 else 'right', fontsize=11, color=muted, transform=table.transAxes)
+    for index, row in enumerate(rows):
+        y = .80 - index * .145
+        table.plot([0, 1], [y + .09, y + .09], color=rule, linewidth=.65, transform=table.transAxes)
+        table.text(0, y, f"{row['bytes'] / 1e9:.2f} GB", fontsize=12, transform=table.transAxes)
+        for x, mode, color in [(.60, 'uncached', ink), (1, 'cached', green)]:
+            seconds = row['median_seconds'][mode]
+            label = f'{seconds * 1000:.0f} ms' if seconds < 1 else f'{seconds:.2f} s'
+            table.text(x, y, label, ha='right', fontsize=12, color=color, weight='bold' if mode == 'cached' else 'normal', transform=table.transAxes)
+    fig.text(.065, .10, f"{result['processor']} · synthetic JSONL · warm OS file cache · offline pricing", fontsize=11, color=muted)
+    fig.text(.065, .056, 'Every measured report matched byte for byte. Raw samples and reproduction steps: rust/bench/', fontsize=10, color=muted)
+    fig.savefig(sys.argv[2], facecolor='white')
+    plt.close(fig)
 
-GREEN, RED, BLUE, GRAY = "#2da44e", "#d1242f", "#2f81d6", "#6e7781"
 
-def fmt(s):
-    return f"{s*1000:.0f} ms" if s < 1 else f"{s:.1f} s"
-
-SIZES = [50, 25, 10, 5, 1]  # top to bottom
-TOOLS = [("turbotokens", GREEN), ("ccusage", RED), ("tokscale", BLUE)]
-
-plt.rcParams.update({
-    "font.family": "Menlo",
-    "font.size": 13,
-    "figure.facecolor": "white",
-    "axes.facecolor": "white",
-    "axes.edgecolor": "#d0d7de",
-    "axes.grid": True,
-    "grid.color": "#eaeef2",
-    "grid.linewidth": 1.0,
-})
-
-fig, ax = plt.subplots(figsize=(11, 6.5), dpi=150)
-fig.subplots_adjust(left=0.115, right=0.965, top=0.82, bottom=0.14)
-
-BAR_H = 0.27
-y_ticks, y_labels = [], []
-for row, n in enumerate(SIZES):
-    yc = len(SIZES) - 1 - row
-    y_ticks.append(yc)
-    y_labels.append(f"{n}B tokens")
-    for i, (tool, color) in enumerate(TOOLS):
-        secs = syn[(tool, n)]
-        yy = yc + (1 - i) * (BAR_H + 0.05)
-        ax.barh(yy, secs, height=BAR_H, color=color)
-        ax.annotate(fmt(secs), (secs, yy), textcoords="offset points", xytext=(6, -3),
-                    color=color, fontsize=11, fontweight="bold")
-
-ax.set_yticks(y_ticks)
-ax.set_yticklabels(y_labels, fontsize=13)
-ax.set_xscale("log")
-ax.set_xlim(0.03, 40)
-ax.set_xticks([0.01, 0.1, 1, 10])
-ax.set_xticklabels(["10 ms", "100 ms", "1 second", "10 seconds"], fontsize=11.5)
-ax.set_xlabel("Time to finish (log scale)")
-ax.set_title("How long it takes to count N tokens", fontsize=17,
-             fontweight="bold", loc="left", pad=32)
-ax.text(0.0, 1.035, "full cost report · identical logs for every tool · no cache",
-        transform=ax.transAxes, fontsize=11.5, color=GRAY)
-ax.legend(handles=[mpatches.Patch(color=c, label=t) for t, c in TOOLS],
-          frameon=False, loc="lower right", fontsize=11.5)
-ax.spines[["top", "right"]].set_visible(False)
-ax.grid(axis="y", visible=False)
-
-# macOS Tahoe window frame: traffic lights, rounded border, soft shadow
-from matplotlib.patches import FancyBboxPatch, Circle
-fig.patches.append(FancyBboxPatch(
-    (0.028, 0.022), 0.944, 0.946, boxstyle="round,pad=0,rounding_size=0.025",
-    transform=fig.transFigure, facecolor="#e2e5e9", edgecolor="none", zorder=-2))  # shadow
-fig.patches.append(FancyBboxPatch(
-    (0.024, 0.026), 0.944, 0.946, boxstyle="round,pad=0,rounding_size=0.025",
-    transform=fig.transFigure, facecolor="white", edgecolor="#d0d7de",
-    linewidth=1.2, zorder=-1))  # window
-for i, c in enumerate(("#ff5f57", "#febc2e", "#28c840")):
-    fig.patches.append(Circle((0.05 + i * 0.022, 0.935), 0.0085,
-                              transform=fig.transFigure, facecolor=c,
-                              edgecolor="none", zorder=1))  # traffic lights
-fig.savefig(out_path)
-print(f"wrote {out_path}")
+if __name__ == '__main__':
+    main()

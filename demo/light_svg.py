@@ -1,66 +1,85 @@
 #!/usr/bin/env python3
-"""Convert turbotokens' dark SVG cards to the light macOS-Tahoe README style.
+"""Create light README previews from sample CLI SVG exports.
 
-Swaps the known dark palettes to GitHub-light equivalents and injects a
-traffic-light header band when the card lacks one (heatmap). The product's
-own SVG output is unchanged — this is a presentation transform for assets/.
-Usage: light_svg.py in.svg out.svg
+Usage: python3 demo/light_svg.py demo/fixtures/heatmap.svg assets/heatmap.svg
+These are presentation assets. The CLI's export theme remains unchanged.
 """
-import re, sys
+from copy import deepcopy
+from pathlib import Path
+import sys
+import xml.etree.ElementTree as ET
 
-PALETTE = {
-    # heatmap: github dark -> github light (intensity ramp inverted)
-    "#0d1117": "#ffffff",
-    "#161b22": "#ebedf0",
-    "#0e4429": "#9be9a8",
-    "#006d32": "#40c463",
-    "#26a641": "#30a14e",
-    "#39d353": "#216e39",
-    "#8b949e": "#57606a",
-    # wrapped: tokyonight-ish -> light
-    "#1a1b26": "#ffffff",
-    "#c0caf5": "#1f2328",
-    "#565f89": "#6e7781",
-    "#7aa2f7": "#0969da",
-    "#9ece6a": "#1a7f37",
-    "#f7768e": "#ff5f57",
-    "#e0af68": "#febc2e",
-}
-DOTS = ('<circle cx="26" cy="17" r="6" fill="#ff5f57"/>'
-        '<circle cx="46" cy="17" r="6" fill="#febc2e"/>'
-        '<circle cx="66" cy="17" r="6" fill="#28c840"/>')
-HEADER = 34
+NS = 'http://www.w3.org/2000/svg'
+ET.register_namespace('', NS)
+INK, MUTED, GREEN = '#202a27', '#59655f', '#176b4b'
+PALETTE = {'#0d1117': '#ffffff', '#161b22': '#edf1ee', '#0e4429': '#b8dfc7', '#006d32': '#74bb94', '#26a641': '#38865e', '#39d353': '#155b3d', '#8b949e': MUTED, '#1a1b26': '#ffffff', '#c0caf5': INK, '#565f89': MUTED, '#7aa2f7': GREEN, '#9ece6a': GREEN, '#e0af68': '#95611e', '#f7768e': '#ae4f53', '#bb9af7': '#7865a8', '#7dcfff': '#3c7b8d', '#ff9e64': '#ad6b3e'}
 
-def main():
-    src, dst = sys.argv[1], sys.argv[2]
-    svg = open(src).read()
 
-    if "#f7768e" not in svg and "#ff5f57" not in svg:
-        # no traffic lights: add a header band above the content
-        tag = re.search(r'<svg[^>]*>', svg).group(0)
-        w = float(re.search(r'width="([\d.]+)"', tag).group(1))
-        h = float(re.search(r'height="([\d.]+)"', tag).group(1))
-        new_tag = (tag
-                   .replace(f'height="{h:g}"', f'height="{h + HEADER:g}"')
-                   .replace(f'viewBox="0 0 {w:g} {h:g}"', f'viewBox="0 0 {w:g} {h + HEADER:g}"'))
-        svg = svg.replace(tag, new_tag, 1)
-        # extend the full-canvas background rect
-        bg = re.search(r'<rect width="[\d.]+" height="[\d.]+"[^>]*>', svg).group(0)
-        bg_end = svg.index(bg) + len(bg)
-        svg = svg[:bg_end - len(bg)] + re.sub(r'height="[\d.]+"', f'height="{h + HEADER:g}"', bg) + svg[bg_end:]
-        # shift all remaining content below the header, dots above it
-        after_bg = bg_end
-        close = svg.rindex("</svg>")
-        svg = (svg[:after_bg] + f'\n<g transform="translate(0,{HEADER})">'
-               + svg[after_bg:close] + "</g>\n" + svg[close:])
-        insert_at = svg.index("</g>\n</svg>") + len("</g>\n")
-        svg = svg[:insert_at] + DOTS + "\n" + svg[insert_at:]
+def element(tag, attrs=None, text=None):
+    node = ET.Element(f'{{{NS}}}{tag}', {key: str(value) for key, value in (attrs or {}).items()})
+    node.text = text
+    return node
 
-    for old, new in PALETTE.items():
-        svg = svg.replace(old, new)
 
-    open(dst, "w").write(svg)
-    print(f"wrote {dst}")
+def label(x, y, size, content, color=INK, weight=400):
+    return element('text', {'x': x, 'y': y, 'font-size': size, 'fill': color, 'font-weight': weight}, content)
 
-if __name__ == "__main__":
-    main()
+
+def canvas(width, height, title):
+    root = element('svg', {'width': width, 'height': height, 'viewBox': f'0 0 {width} {height}', 'font-family': 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', 'role': 'img'})
+    root.append(element('title', text=title))
+    root.append(element('rect', {'x': 1, 'y': 1, 'width': width - 2, 'height': height - 2, 'rx': 12, 'fill': '#ffffff', 'stroke': '#dce3df'}))
+    return root
+
+
+def render(source):
+    original = ET.parse(source).getroot()
+    # Map only original colors, once. Never cascade replacements.
+    for node in original.iter():
+        for key in ('fill', 'stroke'):
+            if node.get(key) in PALETTE:
+                node.set(key, PALETTE[node.get(key)])
+    is_wrapped = any('wrapped ·' in (node.text or '') for node in original)
+    if not is_wrapped:
+        width = max(960, int(original.get('width')) + 80)
+        root = canvas(width, 330, 'Daily token usage, illustrative data')
+        root.append(label(40, 58, 30, 'A year of daily usage', weight=650))
+        root.append(label(40, 88, 15, 'Each square is one day. Darker green means more tokens.', MUTED))
+        group = element('g', {'transform': 'translate(40,122)'})
+        for node in list(original)[1:]:
+            group.append(deepcopy(node))
+        root.append(group)
+        root.append(label(40, 301, 13, 'turbotokens heatmap  /  sample data', MUTED))
+    else:
+        root = canvas(1280, 640, 'Yearly usage summary, illustrative data')
+        for node in original:
+            if node.tag.endswith('circle') or (node.tag.endswith('rect') and node.get('width') == '1280'):
+                continue
+            node = deepcopy(node)
+            text = node.text or ''
+            if text == 'turbotokens':
+                continue
+            if text.startswith('wrapped ·'):
+                node.set('x', '48'); node.set('y', '78'); node.set('font-size', '36'); node.set('fill', INK)
+                node.text = text.replace('wrapped ·', 'Your usage in')
+            elif text.startswith('a year of'):
+                node.set('y', '110'); node.set('font-size', '17'); node.text = 'Token totals and highlights from your agent history.'
+            elif text.startswith('generated by'):
+                node.text = 'turbotokens wrapped  /  sample data  /  costs are estimates'
+                node.set('font-size', '15')
+            elif text == 'favorite day':
+                node.text = 'Most-used weekday'
+            elif text in ('busiest day', 'longest streak', 'top model', 'top project', 'estimated cost'):
+                node.text = text.capitalize()
+            # Give long values a consistent right edge without changing their content.
+            if node.tag.endswith('text') and node.get('x') == '680':
+                node.set('x', '650')
+            if node.get('font-size') == '72':
+                node.set('font-size', '76')
+            root.append(node)
+        root.append(element('line', {'x1': 602, 'x2': 602, 'y1': 178, 'y2': 440, 'stroke': '#dce3df'}))
+    return ET.tostring(root, encoding='unicode') + '\n'
+
+
+if __name__ == '__main__':
+    Path(sys.argv[2]).write_text(render(sys.argv[1]))

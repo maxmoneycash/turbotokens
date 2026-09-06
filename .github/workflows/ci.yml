@@ -27,3 +27,20 @@ jobs:
       # pattern now legitimately matches (e.g. claude-opus-5).
       - run: cargo test --workspace --features fetch-litellm-pricing -- --skip pricing::tests::embedded --skip pricing::tests::fuzzy_match_allows_date_like_suffixes_for_known_numeric_model_versions
       - run: cargo build --release --bin turbotokens --features fetch-litellm-pricing
+
+  packaging:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify npm package and native launcher
+        run: node packaging/smoke-npm.cjs
+      - name: Test shell installer
+        if: runner.os != 'Windows'
+        run: python3 -m unittest discover -s packaging/tests -v

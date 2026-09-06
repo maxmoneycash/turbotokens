@@ -1,41 +1,53 @@
-# Packaging
+# Release packaging
 
-Install channels beyond `install.sh` / direct downloads.
+The Rust version in `rust/Cargo.toml` is the binary's source of truth. The npm wrapper and Homebrew formula must match the published release they download.
 
-## npm — `npx turbotokens`
+## Before publishing
 
-`npm/` is a self-contained wrapper package: its postinstall downloads the
-matching release binary from GitHub Releases.
+1. Run the workspace tests, Clippy, and formatting checks under `rust/`.
+2. Push the version tag to build all six release assets in `.github/workflows/release.yml`.
+3. Download the release assets and verify their SHA-256 digests against GitHub's release metadata.
+4. Update all four checksums in `packaging/turbotokens.rb` and all six in `npm/checksums.json`. Set the formula and npm package versions to the release version.
+5. Run the packaging tests from the repository root:
 
-Publishing (needs npm credentials):
-
-```bash
-cd npm
-# version in package.json must equal the release tag it downloads
-npm publish
+```sh
+python3 -m unittest discover -s packaging/tests -v
+node packaging/smoke-npm.cjs
 ```
 
-First time also: `npm adduser`, and check the `turbotokens` name is yours
-(`npm view turbotokens` — register it before someone else does).
+The npm smoke test packs the package, installs it in a temporary directory, exercises the executable shim, and checks missing-binary and checksum-failure handling. It downloads release assets and works on macOS, Linux, and Windows. The shell tests use a local archive and require a Unix shell.
 
-## Homebrew — `brew install turbotokens`
+## Homebrew
 
-Formulas live in a tap repo, not here. One-time setup:
+The public formula lives in [maxmoneycash/homebrew-tap](https://github.com/maxmoneycash/homebrew-tap) at `Formula/turbotokens.rb`. Copy the verified repo formula there, test it, commit, and push.
 
-1. Create the repo `maxmoneycash/homebrew-tap` on GitHub.
-2. Copy `packaging/turbotokens.rb` to `Formula/turbotokens.rb` there.
-3. On each release: update `version` + the three `sha256` values
-   (`shasum -a 256` on each release asset) and push.
+```sh
+brew install maxmoneycash/tap/turbotokens
+brew test maxmoneycash/tap/turbotokens
+```
 
-Users then: `brew install maxmoneycash/tap/turbotokens`.
+The formula includes macOS and Linux builds for arm64 and x64. Existing users can run `brew update && brew upgrade turbotokens`.
 
-Getting into `homebrew-core` later (no tap needed): open a PR to
-Homebrew/homebrew-core with the same formula once the project has
-some traction (they want a notable repo, stable versioning, and a
-`test do` block — already included).
+## npm
 
-## Windows
+The package is a downloader and a small Node launcher. Native binaries go in `vendor/` during installation and are excluded from the published tarball. Commit the release's checksums, README, and MIT license before packing.
 
-`turbotokens-windows-x64.zip` is on the Releases page. A Scoop manifest
-(`packaging/scoop-turbotokens.json` when we add it) goes in a
-`maxmoneycash/scoop-bucket` repo, same pattern as the tap.
+```sh
+cd npm
+npm whoami
+npm pack --dry-run
+npm publish --access public
+```
+
+After publishing, verify `npm view turbotokens version` and run `npx --yes turbotokens@<version> --version` from outside the repository.
+
+## Direct downloads
+
+GitHub Releases contains `.tar.gz` archives for macOS/Linux and `.zip` archives for Windows, for both x64 and arm64. Each includes the binary, README, and license. Windows users can extract the archive and place `turbotokens.exe` on their PATH.
+
+The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.0`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
+
+```sh
+TURBOTOKENS_VERSION=v1.1.0 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
+/tmp/turbotokens-install/turbotokens --version
+```

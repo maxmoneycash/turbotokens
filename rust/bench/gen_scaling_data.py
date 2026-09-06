@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate a synthetic Claude-format JSONL dataset totaling N tokens.
 
-Usage: gen_data.py <out_dir> <billions_of_tokens>
+Usage: gen_scaling_data.py <out_dir> <billions_of_tokens>
 Deterministic (seed 42). Lines are cache-read-heavy like real Claude Code
-logs: ~31.5K tokens per ~360-byte line. Timestamps spread over 30 days
+logs: ~31.5K recorded tokens per ~2.3 KB line. Timestamps spread over 30 days
 across 3 projects x 2 sessions.
 """
 import json, random, sys, os
