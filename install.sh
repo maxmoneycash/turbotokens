@@ -90,8 +90,6 @@ main() {
         sudo mv "${tmp_dir}/turbotokens" "${install_dir}/turbotokens"
     fi
     chmod +x "${install_dir}/turbotokens" 2>/dev/null || sudo chmod +x "${install_dir}/turbotokens"
-    # Backwards compatibility: keep the old `turbotokens` invocation working.
-    ln -sf turbotokens "${install_dir}/turbotokens" 2>/dev/null || sudo ln -sf turbotokens "${install_dir}/turbotokens"
 
     case ":${PATH}:" in
         *":${install_dir}:"*) ;;
