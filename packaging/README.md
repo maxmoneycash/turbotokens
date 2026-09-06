@@ -45,9 +45,9 @@ After publishing, verify `npm view turbotokens version` and run `npx --yes turbo
 
 GitHub Releases contains `.tar.gz` archives for macOS/Linux and `.zip` archives for Windows, for both x64 and arm64. Each includes the binary, README, and license. Windows users can extract the archive and place `turbotokens.exe` on their PATH.
 
-The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.1`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
+The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.2`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
 
 ```sh
-TURBOTOKENS_VERSION=v1.1.1 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
+TURBOTOKENS_VERSION=v1.1.2 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
 /tmp/turbotokens-install/turbotokens --version
 ```

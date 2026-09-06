@@ -1,6 +1,6 @@
 {
   "name": "turbotokens",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Token usage and estimated cost reports for AI coding agents. Powered by a native Rust binary.",
   "keywords": [
     "claude-code",
