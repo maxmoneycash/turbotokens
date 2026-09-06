@@ -266,8 +266,8 @@ fn write_svg(path: &str, cells: &[DayCell], by_cost: bool) -> Result<()> {
 const SVG_CELL: i64 = 12;
 const SVG_GAP: i64 = 3;
 const SVG_PITCH: i64 = SVG_CELL + SVG_GAP;
-const SVG_LEFT: i64 = 34;
-const SVG_TOP: i64 = 30;
+const SVG_LEFT: i64 = 48;
+const SVG_TOP: i64 = 108;
 
 fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
     let Some(start) = cells.first().map(|cell| cell.day) else {
@@ -281,32 +281,44 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
         .map(|cell| cell.value(by_cost))
         .fold(0.0, f64::max);
 
-    let width = SVG_LEFT + columns as i64 * SVG_PITCH + 14;
+    // A one-day export still needs room for its heading and legend.
+    let width = (SVG_LEFT + columns as i64 * SVG_PITCH + 32).max(460);
     let legend_y = SVG_TOP + 7 * SVG_PITCH + 10;
-    let height = legend_y + 18;
+    let height = legend_y + 38;
 
     let mut svg = String::with_capacity(cells.len() * 90 + 2048);
     svg.push_str(&format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" font-family=\"ui-monospace, Menlo, monospace\">\n"
     ));
     svg.push_str(&format!(
-        "<rect width=\"{width}\" height=\"{height}\" fill=\"#0d1117\" rx=\"8\"/>\n"
+        "<rect width=\"{width}\" height=\"{height}\" fill=\"#0c1413\" rx=\"12\"/>\n"
+    ));
+    let total_tokens: u64 = cells.iter().map(|cell| cell.tokens).sum();
+    let total_cost: f64 = cells.iter().map(|cell| cell.cost).sum();
+    let total = if by_cost {
+        format!("{} estimated cost", format_currency(total_cost))
+    } else {
+        format!("{} tokens", format_number(total_tokens))
+    };
+    svg.push_str(&format!(
+        "<title>Daily usage · {} to {}</title>\n<text x=\"32\" y=\"38\" font-size=\"20\" fill=\"#f0f5ef\" font-weight=\"700\">Daily usage</text>\n<text x=\"32\" y=\"65\" font-size=\"12\" fill=\"#b9f582\">{total} · {} → {}</text>\n",
+        start.format(), end.format(), start.format(), end.format()
     ));
 
     // Month labels above the column where each month starts.
-    svg.push_str("<g fill=\"#8b949e\" font-size=\"10\">\n");
+    svg.push_str("<g fill=\"#a2b2a8\" font-size=\"10\">\n");
     for (column, label) in month_labels(start, grid_start, columns)
         .into_iter()
         .flatten()
     {
         svg.push_str(&format!(
-            "<text x=\"{}\" y=\"18\">{label}</text>\n",
+            "<text x=\"{}\" y=\"96\">{label}</text>\n",
             SVG_LEFT + column as i64 * SVG_PITCH
         ));
     }
     for (row, label) in [(1, "Mon"), (3, "Wed"), (5, "Fri")] {
         svg.push_str(&format!(
-            "<text x=\"4\" y=\"{}\">{label}</text>\n",
+            "<text x=\"16\" y=\"{}\">{label}</text>\n",
             SVG_TOP + row * SVG_PITCH + 10
         ));
     }
@@ -336,7 +348,11 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
     // Legend: Less [cells] More, bottom right.
     let legend_width = 30 + 5 * SVG_PITCH + 34;
     let legend_x = width - legend_width - 14;
-    svg.push_str("<g font-size=\"10\" fill=\"#8b949e\">\n");
+    svg.push_str("<g font-size=\"10\" fill=\"#a2b2a8\">\n");
+    svg.push_str(&format!(
+        "<text x=\"32\" y=\"{}\">turbotokens</text>\n",
+        legend_y + 10
+    ));
     svg.push_str(&format!(
         "<text x=\"{legend_x}\" y=\"{}\">Less</text>\n",
         legend_y + 10
@@ -468,5 +484,14 @@ mod tests {
         // The grid and the legend both rely on exactly five intensity levels.
         assert_eq!(LEVEL_COLORS.len(), 5);
         assert_eq!(LEVEL_FILLS.len(), LEVEL_COLORS.len());
+    }
+
+    #[test]
+    fn one_day_export_keeps_legend_inside_the_canvas() {
+        let day = Day::parse("2026-09-01").unwrap();
+        let svg = render_svg(&dense_cells(day, day, &[]), false);
+        assert!(svg.contains("width=\"460\""));
+        assert!(!svg.contains("x=\"-"));
+        assert!(svg.contains("0 tokens · 2026-09-01 → 2026-09-01"));
     }
 }

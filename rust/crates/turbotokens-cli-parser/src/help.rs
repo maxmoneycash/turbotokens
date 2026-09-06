@@ -90,8 +90,7 @@ fn render_help_page(page: &HelpPage) -> String {
         return command_help(
             page.description,
             page.usage,
-            page.options
-                .expect("command help pages with no subcommands require options"),
+            page.options.unwrap_or_default(),
         );
     }
 
@@ -136,4 +135,32 @@ fn command_help(description: &str, usage: &str, options: &str) -> String {
         options,
     ]
     .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_declared_help_page_renders() {
+        for page in HELP_PAGES {
+            let tokens = page
+                .path
+                .iter()
+                .map(|part| (*part).to_string())
+                .collect::<Vec<_>>();
+            let output = help_text_for_tokens(&tokens);
+            assert!(
+                output.contains(page.usage),
+                "missing usage for {:?}",
+                page.path
+            );
+        }
+    }
+
+    #[test]
+    fn completions_help_accepts_a_positional_only_command() {
+        let output = help_text_for_args(&["completions".into(), "--help".into()]);
+        assert!(output.contains("turbotokens completions <bash|zsh|fish>"));
+    }
 }

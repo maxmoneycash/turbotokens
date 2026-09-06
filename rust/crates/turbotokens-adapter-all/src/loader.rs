@@ -743,10 +743,16 @@ fn needs_session(kinds: &[AgentReportKind]) -> bool {
 
 fn filter_session_summaries(rows: &mut Vec<UsageSummary>, shared: &SharedArgs) {
     if shared.since.is_some() || shared.until.is_some() {
+        let timezone = crate::parse_tz(shared.timezone.as_deref());
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
+                .map(|activity| {
+                    crate::parse_ts_timestamp(activity)
+                        .map(|timestamp| crate::format_date_tz(timestamp, timezone.as_ref()))
+                        .unwrap_or_else(|| activity.get(..10).unwrap_or(activity).to_string())
+                })
                 .unwrap_or_default()
                 .replace('-', "");
             shared.since.as_ref().is_none_or(|since| &date >= since)
@@ -937,6 +943,50 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].date.as_deref(), Some("2026-01-02"));
         assert_eq!(rows[0].input_tokens, 20);
+    }
+
+    #[test]
+    fn session_until_includes_the_whole_calendar_day() {
+        let mut rows = [
+            "2026-09-05T23:59:59Z",
+            "2026-09-06T00:00:00Z",
+            "2026-09-06T23:59:59.999Z",
+            "2026-09-07T00:00:00Z",
+        ]
+        .into_iter()
+        .map(|activity| {
+            let mut row = usage_summary("2026-09-06", 1);
+            row.last_activity = Some(activity.to_string());
+            row
+        })
+        .collect::<Vec<_>>();
+        let shared = SharedArgs {
+            since: Some("20260906".to_string()),
+            until: Some("20260906".to_string()),
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+        filter_session_summaries(&mut rows, &shared);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            rows[1].last_activity.as_deref(),
+            Some("2026-09-06T23:59:59.999Z")
+        );
+    }
+
+    #[test]
+    fn session_date_filter_uses_the_requested_timezone() {
+        let mut row = usage_summary("2026-09-07", 1);
+        row.last_activity = Some("2026-09-07T06:59:59.999Z".to_string());
+        let mut rows = vec![row];
+        let shared = SharedArgs {
+            since: Some("20260906".to_string()),
+            until: Some("20260906".to_string()),
+            timezone: Some("America/Los_Angeles".to_string()),
+            ..SharedArgs::default()
+        };
+        filter_session_summaries(&mut rows, &shared);
+        assert_eq!(rows.len(), 1);
     }
 
     #[test]

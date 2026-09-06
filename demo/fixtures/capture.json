@@ -1,0 +1,37 @@
+{
+  "version": "turbotokens 1.1.1",
+  "captured_at": "2026-09-06T11:09:38.164515+00:00",
+  "data": "Synthetic, seed 42",
+  "commands": {
+    "daily.txt": [
+      "daily",
+      "--last",
+      "3",
+      "--offline"
+    ],
+    "daily.json": [
+      "daily",
+      "--last",
+      "3",
+      "--offline",
+      "--json"
+    ],
+    "heatmap.svg": [
+      "heatmap",
+      "--offline",
+      "--svg",
+      "/Users/maxmohammadi/ccusage-clone/assets/heatmap.svg",
+      "--json"
+    ],
+    "wrapped.svg": [
+      "wrapped",
+      "--year",
+      "2026",
+      "--offline",
+      "--svg",
+      "/Users/maxmohammadi/ccusage-clone/assets/wrapped.svg",
+      "--json"
+    ]
+  },
+  "live": "live --offline; 12 seconds, original speed"
+}

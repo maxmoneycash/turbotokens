@@ -2,7 +2,7 @@
 source: crates/turbotokens-cli-parser/src/tests.rs
 expression: "help_text_for_args(&[\"turbotokens\".to_string(), \"live\".to_string()])"
 ---
-Stream Claude Code token usage in real time
+Follow Claude Code or Codex usage in a live dashboard
 
 USAGE:
   turbotokens live <OPTIONS>

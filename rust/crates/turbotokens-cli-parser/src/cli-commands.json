@@ -46,7 +46,7 @@
 			},
 			{
 				"name": "live",
-				"description": "Stream Claude Code token usage in real time"
+				"description": "Follow Claude Code or Codex usage in a live dashboard"
 			},
 			{
 				"name": "daemon",
@@ -189,7 +189,7 @@
 		},
 		{
 			"path": ["live"],
-			"description": "Stream Claude Code token usage in real time",
+			"description": "Follow Claude Code or Codex usage in a live dashboard",
 			"usage": "turbotokens live <OPTIONS>",
 			"options": "claude_live_options"
 		},

@@ -10,11 +10,18 @@ body:
       description: What did you run, what did you expect, what did you get?
     validations:
       required: true
+  - type: input
+    id: version
+    attributes:
+      label: Binary version
+      description: Run `turbotokens --version` (the binary version may differ from the npm wrapper).
+    validations:
+      required: true
   - type: textarea
     id: doctor
     attributes:
       label: turbotokens doctor output
-      description: Paste the output of `turbotokens doctor`
+      description: Paste the output of `turbotokens doctor`, removing private paths or names.
       render: text
   - type: input
     id: os

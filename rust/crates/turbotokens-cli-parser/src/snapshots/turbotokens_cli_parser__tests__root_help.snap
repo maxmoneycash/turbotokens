@@ -13,7 +13,7 @@ COMMANDS:
   session                    Show all detected coding (agent) CLI usage grouped by session
   blocks                     Show usage report grouped by session billing blocks
   statusline                 Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)
-  live                       Stream Claude Code token usage in real time
+  live                       Follow Claude Code or Codex usage in a live dashboard
   daemon                     Run a resident index daemon for near-instant reports
   doctor                     Diagnose data directories, cache health, and pricing setup
   limits                     Show plan-limit / quota usage for subscription agents (Claude, Codex)

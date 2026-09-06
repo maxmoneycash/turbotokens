@@ -90,7 +90,7 @@ The Claude adapter caches parsing results automatically. To bypass this cache fo
 TURBOTOKENS_CACHE=off turbotokens claude daily --offline --json
 ```
 
-Use `TURBOTOKENS_CACHE_DIR` to choose a separate cache directory. For repeated unified reports, a resident index daemon is also available:
+Use `TURBOTOKENS_CACHE_DIR` to choose a separate cache directory. On Unix, a resident index daemon can serve compatible Claude daily reports from memory:
 
 ```sh
 turbotokens daemon start
@@ -107,3 +107,18 @@ turbotokens completions zsh
 ```
 
 The command prints a completion script. Install it in the completion directory used by your shell.
+
+## Claude Code status line
+
+Merge this entry into Claude Code's `settings.json`, preserving your other settings:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "turbotokens statusline"
+  }
+}
+```
+
+Claude Code sends the command a JSON description of the active session on standard input. The output includes usage and cost information. Offline pricing is the default; `--visual-burn-rate text` adds a burn-rate indicator. Run `turbotokens statusline --help` for cost-source, context-threshold, and cache options.

@@ -1,29 +1,42 @@
 # Contributing to turbotokens
 
-Thanks for helping make turbotokens better. This is a Rust workspace; no JavaScript build.
+Help make usage counts accurate, reports fast, and the CLI pleasant to use. Small reproducible fixes are welcome.
 
-## Setup
+## Get a working build
 
-```bash
+```sh
 git clone https://github.com/maxmoneycash/turbotokens.git
 cd turbotokens/rust
 cargo build --release --bin turbotokens --features fetch-litellm-pricing
 cargo test --workspace --features fetch-litellm-pricing
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --features fetch-litellm-pricing -- -D warnings
 ```
 
-The `fetch-litellm-pricing` feature downloads the pricing snapshot at build time. For offline or sandboxed builds, set `TURBOTOKENS_PRICING_JSON_PATH` to a local LiteLLM `model_prices_and_context_window.json`.
+Use Rust with edition 2024 support. The pricing feature downloads a snapshot at build time. For a local file, set `TURBOTOKENS_PRICING_JSON_PATH` to a LiteLLM `model_prices_and_context_window.json` file. The binary is the product; `npm/` only installs and launches release binaries.
 
-## Rules that keep the project fast
+## Useful places to start
 
-- **Output parity is sacred.** Any change to parsing, caching, or aggregation must keep `--json` output byte-identical. `rust/bench/warm-bench.sh` checks this automatically — run it before submitting.
-- **std-only hot paths.** No async runtime, no clap, no new dependencies without a measured reason in the PR description.
-- **Clippy and fmt are gates:** `cargo clippy --workspace --all-targets --features fetch-litellm-pricing` must be warning-free and `cargo fmt --check` clean.
-- Benchmarks for performance claims: include `bench/warm-bench.sh` or `bench/latency-probe.sh` numbers in your PR.
+- **A counting bug:** add the smallest sanitized fixture that reproduces it, then fix the relevant adapter. Include expected input, output, cache, and total counts.
+- **An unclear command:** improve its JSON help definition under `rust/crates/turbotokens-cli-parser/src/`, its snapshot, and the matching usage example.
+- **A missing log format:** start with the [adapter guide](rust/adapters/README.md) and a real, sanitized sample of that format.
+- **A slow report:** record the command, machine, file count, bytes, version, and raw timings. Use the [benchmark harnesses](rust/bench/README.md) to establish a baseline before changing code.
+- **A visual problem:** include the terminal width or export dimensions. Generate examples with [isolated synthetic data](demo/README.md), not personal session histories.
 
-## Good first contributions
+## Keep changes reviewable
 
-Look for issues labeled [`good first issue`](https://github.com/maxmoneycash/turbotokens/labels/good%20first%20issue). Extending `turbotokens live` to another agent (see `rust/adapters/codex/src/live.rs` as the template) is a great first PR.
+Explain the concrete problem, the resulting behavior, and how you checked it. Keep unrelated refactoring out of the patch.
 
-## Reporting bugs
+Parsing and caching changes must preserve `--json` output byte for byte. Run `rust/bench/warm-bench.sh` on a suitable history and include the result. If fixing an incorrect count, document the affected case and the expected corrected value, with a regression fixture. Never silently change the meaning of a token category.
 
-Include: `turbotokens doctor` output, your OS, the command you ran, and a minimal JSONL fixture that reproduces the problem (scrub anything private — lines only need `timestamp`, `message.id`, `message.model`, `message.usage`, `requestId`).
+Hot paths stay small: no async runtime, no clap, and no new dependency without a measured reason. Keep source-specific discovery and parsing in that adapter; shared rendering and aggregation belong in the shared crates.
+
+Benchmarks must compare equivalent work with pinned versions and matching architectures. Report caches, pricing setup, raw samples, and limitations along with the headline number.
+
+## Report a bug
+
+[Open a bug report](https://github.com/maxmoneycash/turbotokens/issues/new?template=bug_report.yml) with the command, binary version, OS, and expected result. `turbotokens doctor` helps identify data discovery problems. Remove credentials, prompts, private paths, and project details from anything you post; a fixture usually needs only the usage fields and IDs required to reproduce the behavior.
+
+## Release work
+
+The [packaging guide](packaging/README.md) covers release binaries, checksums, the Homebrew tap, and the npm wrapper. A README or benchmark claim should describe a version readers can obtain, and link to its measurement evidence.

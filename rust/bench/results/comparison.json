@@ -1,0 +1,250 @@
+{
+  "measured_at": "2026-09-06T10:45:13.385942+00:00",
+  "host": "macOS-26.6-x86_64-i386-64bit",
+  "processor": "Apple M1 Max",
+  "tools": {
+    "turbotokens": {
+      "version": "turbotokens 1.1.0",
+      "sha256": "15403ae9fb8c070affb1cdb0352ec9a8f2a457d074ebdcbb553708d55655f425",
+      "file": "Mach-O 64-bit executable arm64"
+    },
+    "ccusage": {
+      "version": "ccusage 20.0.20",
+      "sha256": "0da92f9ba7c1d78d54a8664d3d9a0f4a8565c67889590ec8859e75167a4a15ce",
+      "file": "Mach-O 64-bit executable arm64"
+    },
+    "tokscale": {
+      "version": "tokscale 4.15.1",
+      "sha256": "2576f434faf96ff835f0c0e30b5bf5b9ddeebe642f3388287ed9fd18da2697cf",
+      "file": "Mach-O 64-bit executable arm64"
+    }
+  },
+  "runs": 5,
+  "report": "monthly",
+  "method": "Native JSON reports, warm application and OS caches, rotating tool order, subprocess wall time including output. Pricing is primed before timing. Four token categories match on every run. Six files per synthetic dataset. No daemon.",
+  "commands": {
+    "turbotokens": [
+      "claude",
+      "monthly",
+      "--offline",
+      "--json"
+    ],
+    "ccusage": [
+      "claude",
+      "monthly",
+      "--offline",
+      "--json"
+    ],
+    "tokscale": [
+      "monthly",
+      "--client",
+      "claude",
+      "--home",
+      "/var/folders/78/0c0q80g573xgg3fqmp3py3pr0000gn/T/turbotokens-compare-lt5otdbt/50",
+      "--json",
+      "--no-spinner"
+    ]
+  },
+  "datasets": [
+    {
+      "recorded_tokens": 1000032623,
+      "bytes": 72394115,
+      "files": 6,
+      "token_categories": {
+        "input": 12651917,
+        "output": 4747258,
+        "cache_creation": 31608730,
+        "cache_read": 951024718
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          0.04949475000000003,
+          0.03763100000000019,
+          0.03938779200000031,
+          0.0353987499999997,
+          0.0370853750000002
+        ],
+        "ccusage": [
+          0.07079958299999989,
+          0.10938633299999978,
+          0.06256349999999955,
+          0.07651312499999996,
+          0.062215709000000174
+        ],
+        "tokscale": [
+          0.6223000829999998,
+          0.1073097909999996,
+          0.11799399999999949,
+          0.08563179200000004,
+          0.08432841599999996
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 0.03763100000000019,
+        "ccusage": 0.07079958299999989,
+        "tokscale": 0.1073097909999996
+      }
+    },
+    {
+      "recorded_tokens": 5000001339,
+      "bytes": 362087329,
+      "files": 6,
+      "token_categories": {
+        "input": 63313341,
+        "output": 23758602,
+        "cache_creation": 158253537,
+        "cache_read": 4754675859
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          0.14773058299999953,
+          0.17864308399999995,
+          0.14656458299999997,
+          0.14302654099999934,
+          0.13841225000000001
+        ],
+        "ccusage": [
+          0.2824115419999993,
+          0.27300525000000064,
+          0.2773852080000001,
+          0.24427229100000147,
+          0.22795629099999992
+        ],
+        "tokscale": [
+          0.34991395800000014,
+          0.3397546250000003,
+          0.3421413339999999,
+          0.33516612500000065,
+          0.33665120800000103
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 0.14656458299999997,
+        "ccusage": 0.27300525000000064,
+        "tokscale": 0.3397546250000003
+      }
+    },
+    {
+      "recorded_tokens": 10000027728,
+      "bytes": 724575513,
+      "files": 6,
+      "token_categories": {
+        "input": 126753231,
+        "output": 47515625,
+        "cache_creation": 316687177,
+        "cache_read": 9509071695
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          0.26911583399999905,
+          0.2611819579999999,
+          0.261088333,
+          0.2629394579999982,
+          0.3537593749999992
+        ],
+        "ccusage": [
+          0.450402875,
+          0.6217011249999995,
+          0.5389644579999988,
+          0.4467557080000013,
+          0.7543832080000001
+        ],
+        "tokscale": [
+          0.7512802919999988,
+          0.7308721250000012,
+          0.7489256669999982,
+          0.7774518330000006,
+          1.3634281250000022
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 0.2629394579999982,
+        "ccusage": 0.5389644579999988,
+        "tokscale": 0.7512802919999988
+      }
+    },
+    {
+      "recorded_tokens": 25000005131,
+      "bytes": 1811954779,
+      "files": 6,
+      "token_categories": {
+        "input": 316997213,
+        "output": 118842379,
+        "cache_creation": 791717541,
+        "cache_read": 23772447998
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          0.6494762089999995,
+          0.6218489999999974,
+          0.6956593330000018,
+          0.5948307909999997,
+          0.6089795000000038
+        ],
+        "ccusage": [
+          1.1776280829999983,
+          4.2324827499999955,
+          2.3177089169999974,
+          1.2302334170000009,
+          1.145785208999996
+        ],
+        "tokscale": [
+          6.529912082999999,
+          1.8111505829999999,
+          1.9781092919999992,
+          1.853647959,
+          1.858769125000002
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 0.6218489999999974,
+        "ccusage": 1.2302334170000009,
+        "tokscale": 1.858769125000002
+      }
+    },
+    {
+      "recorded_tokens": 50000008047,
+      "bytes": 3625098663,
+      "files": 6,
+      "token_categories": {
+        "input": 633831041,
+        "output": 237728438,
+        "cache_creation": 1584371892,
+        "cache_read": 47544076676
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          1.8731432499999983,
+          3.864566124999996,
+          1.3297040839999994,
+          1.5447164579999964,
+          1.3218654579999907
+        ],
+        "ccusage": [
+          5.521271583000001,
+          4.827032333000005,
+          6.0363342920000065,
+          4.8072211669999945,
+          4.316668542000002
+        ],
+        "tokscale": [
+          3.983060832999996,
+          11.873931584000005,
+          4.947975499999998,
+          3.990844042000006,
+          3.8803883340000027
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 1.5447164579999964,
+        "ccusage": 4.827032333000005,
+        "tokscale": 3.990844042000006
+      }
+    }
+  ]
+}

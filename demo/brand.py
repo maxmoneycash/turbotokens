@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Generate the README masthead and matching social image source (no dependencies)."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def masthead(height=480):
+    return '''<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="%s" viewBox="0 0 1280 %s">
+<title>turbotokens: Know what your coding agents spend.</title>
+<desc>A native Rust CLI for usage reports, live telemetry, and shareable statistics across 18 AI coding agents.</desc>
+<rect width="1280" height="%s" rx="20" fill="#0c1413"/>
+<path d="M0 1H1280" stroke="#b9f582" stroke-width="3"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="56" y="64" fill="#b9f582" font-size="17" font-weight="700" letter-spacing="3">AI CODING AGENT ANALYTICS</text>
+<text x="50" y="184" fill="#f0f5ef" font-size="116" font-weight="800" letter-spacing="-7">turbotokens</text>
+<text x="56" y="246" fill="#d9e2da" font-size="34">Know what your coding agents spend.</text>
+<g stroke="#b9f582" stroke-width="10" fill="none" stroke-linejoin="miter">
+<path d="M1032 106l42 42-42 42"/><path d="M1080 106l42 42-42 42"/><path d="M1128 106l42 42-42 42"/>
+</g>
+<path d="M56 292H1224" stroke="#33403a"/>
+<g font-family="Menlo, Consolas, monospace">
+<text x="56" y="345" fill="#b9f582" font-size="33" font-weight="700">18 agents</text>
+<text x="56" y="377" fill="#a2b2a8" font-size="17">One place to check usage</text>
+<text x="475" y="345" fill="#b9f582" font-size="33" font-weight="700">~13 ms</text>
+<text x="475" y="377" fill="#a2b2a8" font-size="17">Repeat Claude daily report*</text>
+<text x="902" y="345" fill="#b9f582" font-size="33" font-weight="700">Native Rust</text>
+<text x="902" y="377" fill="#a2b2a8" font-size="17">macOS / Linux / Windows</text>
+<text x="56" y="440" fill="#a2b2a8" font-size="14">* M1 Max · v1.1.0 · 3.63 GB / 6 synthetic files · warm cache. Full benchmarks below.</text>
+</g></g></svg>''' % (height, height, height)
+
+
+if __name__ == '__main__':
+    (ROOT / 'assets/hero.svg').write_text(masthead())
+    (ROOT / 'assets/social-card.svg').write_text(masthead(640).replace('<g font-family="Arial', '<g transform="translate(0,80)" font-family="Arial'))

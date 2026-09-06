@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="137" height="20" viewBox="0 0 137 20" font-family="Menlo, 'SF Mono', 'Cascadia Code', Consolas, monospace" font-size="11">
-  <clipPath id="r"><rect width="137" height="20" rx="3"/></clipPath>
+<svg xmlns="http://www.w3.org/2000/svg" width="149" height="20" viewBox="0 0 149 20" font-family="Menlo, 'SF Mono', 'Cascadia Code', Consolas, monospace" font-size="11">
+  <clipPath id="r"><rect width="149" height="20" rx="3"/></clipPath>
   <g clip-path="url(#r)">
-    <rect width="85" height="20" fill="#f6f8fa"/>
-    <rect x="85" width="52" height="20" fill="#0969da"/>
+    <rect width="104" height="20" fill="#f6f8fa"/>
+    <rect x="104" width="45" height="20" fill="#0969da"/>
   </g>
-  <rect x="0.5" y="0.5" width="136" height="19" rx="3" fill="none" stroke="#d0d7de"/>
-  <text x="42.5" y="14" text-anchor="middle" fill="#57606a">cold report</text>
-  <text x="111.0" y="14" text-anchor="middle" fill="#ffffff" font-weight="bold">170 ms</text>
+  <rect x="0.5" y="0.5" width="148" height="19" rx="3" fill="none" stroke="#d0d7de"/>
+  <text x="52.0" y="14" text-anchor="middle" fill="#57606a">Claude repeat*</text>
+  <text x="126.5" y="14" text-anchor="middle" fill="#ffffff" font-weight="bold">13 ms</text>
 </svg>

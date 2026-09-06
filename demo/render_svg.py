@@ -14,16 +14,16 @@ ROWS = int(sys.argv[4]) if len(sys.argv) > 4 else 32
 FONT = int(sys.argv[5]) if len(sys.argv) > 5 else 15
 TRIM = len(sys.argv) > 6 and sys.argv[6] == "trim"
 
-BG = "#1a1b26"
-FG = "#c0caf5"
+BG = "#0c1413"
+FG = "#f0f5ef"
 BASE16 = {
-    "black": "#151724", "red": "#f7768e", "green": "#9ece6a",
-    "yellow": "#e0af68", "brown": "#e0af68", "blue": "#7aa2f7", "magenta": "#bb9af7",
+    "black": "#151724", "red": "#f7768e", "green": "#b9f582",
+    "yellow": "#e0af68", "brown": "#e0af68", "blue": "#91b9ee", "magenta": "#bb9af7",
     "cyan": "#7dcfff", "white": "#a9b1d6",
-    "brightblack": "#414868", "brightred": "#f7768e",
-    "brightgreen": "#9ece6a", "brightyellow": "#e0af68",
-    "brightblue": "#7aa2f7", "brightmagenta": "#bb9af7",
-    "brightcyan": "#7dcfff", "brightwhite": "#c0caf5",
+    "brightblack": "#64786d", "brightred": "#f7768e",
+    "brightgreen": "#b9f582", "brightyellow": "#e0af68",
+    "brightblue": "#91b9ee", "brightmagenta": "#bb9af7",
+    "brightcyan": "#7dcfff", "brightwhite": "#f0f5ef",
 }
 FONT_STACK = "Menlo, 'SF Mono', 'Cascadia Code', Consolas, monospace"
 

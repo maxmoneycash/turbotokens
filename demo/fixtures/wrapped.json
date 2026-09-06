@@ -1,0 +1,44 @@
+{
+  "activeDays": 204,
+  "agents": [
+    {
+      "agent": "claude",
+      "cost": 160.03581510000006,
+      "sharePercent": 87.04409534362286,
+      "tokens": 225423480
+    },
+    {
+      "agent": "codex",
+      "cost": 77.83505750000005,
+      "sharePercent": 12.955904656377134,
+      "tokens": 33552708
+    }
+  ],
+  "busiestDay": {
+    "cost": 1.5925569000000004,
+    "date": "2026-08-01",
+    "tokens": 2063347
+  },
+  "favoriteDayOfWeek": {
+    "day": "Friday",
+    "tokens": 46404548
+  },
+  "longestStreak": {
+    "days": 19,
+    "end": "2026-02-20",
+    "start": "2026-02-02"
+  },
+  "topModel": {
+    "cost": 160.03581510000006,
+    "model": "claude-sonnet-4-20250514",
+    "tokens": 225423480
+  },
+  "topProject": {
+    "cost": 55.203150749999885,
+    "project": "webapp",
+    "tokens": 78463997
+  },
+  "totalCost": 237.87087260000004,
+  "totalTokens": 258976188,
+  "year": 2026
+}

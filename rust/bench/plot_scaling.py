@@ -12,14 +12,14 @@ from matplotlib.ticker import MaxNLocator
 def main():
     result = json.loads(Path(sys.argv[1]).read_text())
     rows = result['datasets']
-    ink, muted, rule, green = '#202a27', '#59655f', '#dce3df', '#176b4b'
-    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 12, 'text.color': ink, 'axes.labelcolor': muted, 'xtick.color': muted, 'ytick.color': muted, 'figure.facecolor': '#ffffff', 'axes.facecolor': '#ffffff', 'svg.fonttype': 'none'})
+    ink, muted, rule, green = '#f0f5ef', '#a2b2a8', '#33403a', '#b9f582'
+    plt.rcParams.update({'font.family': 'DejaVu Sans', 'font.size': 12, 'text.color': ink, 'axes.labelcolor': muted, 'xtick.color': muted, 'ytick.color': muted, 'figure.facecolor': '#0c1413', 'axes.facecolor': '#0c1413', 'svg.fonttype': 'none'})
     fig = plt.figure(figsize=(12, 6.4), dpi=160)
     fig.text(.065, .91, 'Reports over growing log histories', fontsize=24, weight='bold')
     fig.text(.065, .854, f"turbotokens {result['version'].split()[-1]}  /  Claude daily report  /  median of {result['runs']} runs", fontsize=12, color=muted)
     ax = fig.add_axes([.08, .245, .51, .50])
     sizes = [row['bytes'] / 1e9 for row in rows]
-    for mode, color, label in [('uncached', '#7c8e84', 'Cache disabled'), ('cached', green, 'Cache enabled')]:
+    for mode, color, label in [('uncached', '#91b9ee', 'Cache disabled'), ('cached', green, 'Cache enabled')]:
         values = [row['median_seconds'][mode] for row in rows]
         ax.plot(sizes, values, color=color, linewidth=2.5, marker='o', markersize=6, label=label)
     ax.set_xlim(0, max(sizes) * 1.06)
@@ -48,7 +48,7 @@ def main():
             table.text(x, y, label, ha='right', fontsize=12, color=color, weight='bold' if mode == 'cached' else 'normal', transform=table.transAxes)
     fig.text(.065, .10, f"{result['processor']} · synthetic JSONL · warm OS file cache · offline pricing", fontsize=11, color=muted)
     fig.text(.065, .056, 'Every measured report matched byte for byte. Raw samples and reproduction steps: rust/bench/', fontsize=10, color=muted)
-    fig.savefig(sys.argv[2], facecolor='white')
+    fig.savefig(sys.argv[2], facecolor='#0c1413')
     plt.close(fig)
 
 

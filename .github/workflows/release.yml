@@ -74,3 +74,23 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.asset }}
+
+  checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all six archives and publish their checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir artifacts
+          cd artifacts
+          gh release download "$RELEASE_TAG" --pattern 'turbotokens-*.tar.gz' --pattern 'turbotokens-*.zip'
+          assets=(turbotokens-*.tar.gz turbotokens-*.zip)
+          test "${#assets[@]}" -eq 6
+          sha256sum "${assets[@]}" > SHA256SUMS
+          gh release upload "$RELEASE_TAG" SHA256SUMS --clobber

@@ -11,12 +11,12 @@ lines = Path(sys.argv[1]).read_text().strip('\n').splitlines()
 cell, pitch, padding = 8.4, 21, 28
 width = round(max(map(len, lines)) * cell + padding * 2)
 height = len(lines) * pitch + padding * 2 + 38
-svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">', '<title>turbotokens daily report, sample data</title>', f'<rect x="1" y="1" width="{width-2}" height="{height-2}" rx="12" fill="#ffffff" stroke="#dce3df"/>', f'<text x="{padding}" y="32" font-family="Menlo,monospace" font-size="12" fill="#59655f">$ turbotokens claude daily --since 20260901</text>']
+svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">', '<title>turbotokens daily report, sample data</title>', f'<rect x="1" y="1" width="{width-2}" height="{height-2}" rx="12" fill="#0c1413" stroke="#33403a"/>', f'<text x="{padding}" y="32" font-family="Menlo,monospace" font-size="14" fill="#a2b2a8">$ turbotokens daily --last 3</text>']
 # Directions from the center of a terminal cell: left, up, right, down.
 boxes = {'─': 'lr', '│': 'ud', '┌': 'rd', '╭': 'rd', '┐': 'ld', '╮': 'ld', '└': 'ur', '╰': 'ur', '┘': 'lu', '╯': 'lu', '├': 'urd', '┤': 'lud', '┬': 'lrd', '┴': 'lur', '┼': 'lurd'}
 for row, line in enumerate(lines):
     top = padding + 38 + row * pitch
-    color = '#176b4b' if 'Total ' in line else '#202a27'
+    color = '#b9f582' if 'Total ' in line else '#f0f5ef'
     run, start = '', 0
 
     def flush():
@@ -29,7 +29,7 @@ for row, line in enumerate(lines):
             x, y = padding + (column + .5) * cell, top + pitch / 2
             for direction in boxes[char]:
                 dx, dy = {'l': (-cell/2, 0), 'r': (cell/2, 0), 'u': (0, -pitch/2), 'd': (0, pitch/2)}[direction]
-                svg.append(f'<path d="M{x:.1f},{y:.1f} l{dx:.1f},{dy:.1f}" stroke="#97a69e" stroke-width=".8" fill="none"/>')
+                svg.append(f'<path d="M{x:.1f},{y:.1f} l{dx:.1f},{dy:.1f}" stroke="#52665a" stroke-width=".8" fill="none"/>')
         else:
             if not run: start = column
             run += char
