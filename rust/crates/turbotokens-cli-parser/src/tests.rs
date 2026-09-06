@@ -324,7 +324,9 @@ fn parses_live_agent_alert_webhook_and_serve_options() {
     };
     assert_eq!(args.agent, LiveAgent::Claude);
 
-    assert!(parse_error(&["turbotokens", "live", "--agent", "gemini"]).contains("Unknown live agent"));
+    assert!(
+        parse_error(&["turbotokens", "live", "--agent", "gemini"]).contains("Unknown live agent")
+    );
 }
 
 #[test]
@@ -412,7 +414,14 @@ fn rejects_last_periods_alongside_an_explicit_date_window() {
 #[test]
 fn rejects_last_periods_with_multi_section_reports() {
     assert_eq!(
-        parse_error(&["turbotokens", "daily", "--last", "1", "--sections", "monthly"]),
+        parse_error(&[
+            "turbotokens",
+            "daily",
+            "--last",
+            "1",
+            "--sections",
+            "monthly"
+        ]),
         "The --last option cannot be used with --sections."
     );
 }
@@ -528,7 +537,14 @@ fn parses_top_level_session_sections_as_all_agent_report_without_id() {
 
 #[test]
 fn rejects_sections_and_by_agent_with_top_level_session_id() {
-    let sections_error = parse_error(&["turbotokens", "session", "--id", "abc", "--sections", "daily"]);
+    let sections_error = parse_error(&[
+        "turbotokens",
+        "session",
+        "--id",
+        "abc",
+        "--sections",
+        "daily",
+    ]);
     assert_eq!(
         sections_error,
         "The --sections and --by-agent options cannot be used with session --id."
@@ -1356,7 +1372,10 @@ fn named_pi_store_validation_does_not_break_statusline() {
     let args = vec![
         "statusline".to_string(),
         "--config".to_string(),
-        fixture.path("turbotokens.json").to_string_lossy().into_owned(),
+        fixture
+            .path("turbotokens.json")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let config = turbotokens_config::ConfigContext::from_args(&args);
 
@@ -1382,7 +1401,10 @@ fn named_pi_store_validation_does_not_break_agent_commands() {
         "codex".to_string(),
         "daily".to_string(),
         "--config".to_string(),
-        fixture.path("turbotokens.json").to_string_lossy().into_owned(),
+        fixture
+            .path("turbotokens.json")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let config = turbotokens_config::ConfigContext::from_args(&args);
 
@@ -1407,7 +1429,10 @@ fn reports_named_pi_store_validation_through_cli_config_error_path() {
     let args = vec![
         "daily".to_string(),
         "--config".to_string(),
-        fixture.path("turbotokens.json").to_string_lossy().into_owned(),
+        fixture
+            .path("turbotokens.json")
+            .to_string_lossy()
+            .into_owned(),
     ];
     let config = turbotokens_config::ConfigContext::from_args(&args);
 
@@ -1543,9 +1568,7 @@ fn parses_heatmap_command_with_cost_svg_and_window() {
     assert_eq!(args.shared.since.as_deref(), Some("20260101"));
     assert!(args.shared.json);
 
-    assert!(
-        parse_error(&["turbotokens", "heatmap", "--bogus"]).contains("Unknown heatmap option")
-    );
+    assert!(parse_error(&["turbotokens", "heatmap", "--bogus"]).contains("Unknown heatmap option"));
 }
 
 #[test]
@@ -1556,13 +1579,7 @@ fn parses_wrapped_command_with_year_and_svg() {
     };
     assert_eq!(args.year, None);
 
-    let cli = parse(&[
-        "turbotokens",
-        "wrapped",
-        "--year",
-        "2025",
-        "--svg=card.svg",
-    ]);
+    let cli = parse(&["turbotokens", "wrapped", "--year", "2025", "--svg=card.svg"]);
     let Some(Command::Wrapped(args)) = cli.command else {
         panic!("expected wrapped command");
     };
@@ -1571,9 +1588,7 @@ fn parses_wrapped_command_with_year_and_svg() {
 
     assert!(parse_error(&["turbotokens", "wrapped", "--year", "20"]).contains("--year"));
     assert!(parse_error(&["turbotokens", "wrapped", "--year", "abc"]).contains("--year"));
-    assert!(
-        parse_error(&["turbotokens", "wrapped", "--bogus"]).contains("Unknown wrapped option")
-    );
+    assert!(parse_error(&["turbotokens", "wrapped", "--bogus"]).contains("Unknown wrapped option"));
 }
 
 #[test]

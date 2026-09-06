@@ -107,9 +107,8 @@ pub(super) fn row_to_entry(
     let missing_pricing_model = if mode == CostMode::Display || cost_model.is_some() {
         None
     } else {
-        (total_usage_tokens(usage).saturating_add(extra_total_tokens) > 0).then(|| {
-            turbotokens_core::model_aliases::resolve_model_name(&raw_model).into_owned()
-        })
+        (total_usage_tokens(usage).saturating_add(extra_total_tokens) > 0)
+            .then(|| turbotokens_core::model_aliases::resolve_model_name(&raw_model).into_owned())
     };
 
     Some(LoadedEntry {

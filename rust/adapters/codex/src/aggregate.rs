@@ -654,8 +654,8 @@ pub fn filter_events_by_date(
 mod tests {
     use super::*;
 
-    use turbotokens_test_support::fs_fixture;
     use serde_json::json;
+    use turbotokens_test_support::fs_fixture;
 
     use crate::{
         PricingMap, cli::CodexSpeed, model_aliases::set_model_aliases_for_tests,

@@ -72,8 +72,8 @@ pub fn has_data() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
+    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
 
     use super::*;
     use crate::UsageSummary;

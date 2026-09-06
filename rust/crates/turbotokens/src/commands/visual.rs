@@ -170,6 +170,9 @@ mod tests {
 
     #[test]
     fn escapes_xml_specials() {
-        assert_eq!(xml_escape("a<b>&\"'\""), "a&lt;b&gt;&amp;&quot;&apos;&quot;");
+        assert_eq!(
+            xml_escape("a<b>&\"'\""),
+            "a&lt;b&gt;&amp;&quot;&apos;&quot;"
+        );
     }
 }

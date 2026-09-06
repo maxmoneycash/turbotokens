@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use crate::{
     Color, Context as _, MILLIS_PER_MINUTE, Result, TimestampMs,
     cli::{LimitsArgs, LimitsScope, SharedArgs},
-    cli_error, color, format_minute, format_rfc3339_millis, format_remaining_time, home,
+    cli_error, color, format_minute, format_remaining_time, format_rfc3339_millis, home,
     parse_ts_timestamp, print_json_or_jq, utc_now, wants_json,
 };
 
@@ -75,7 +75,11 @@ pub(super) fn run(args: &LimitsArgs) -> Result<()> {
     }
 
     if wants_json(&args.shared) {
-        print_json_or_jq(report_json(&outcomes, now), args.shared.jq.as_deref(), false)?;
+        print_json_or_jq(
+            report_json(&outcomes, now),
+            args.shared.jq.as_deref(),
+            false,
+        )?;
     } else {
         print_text_report(&outcomes, &args.shared, now);
     }
@@ -166,7 +170,11 @@ fn parse_claude_usage(body: &str) -> Result<AgentLimits> {
     for (name, label, window) in [
         ("five_hour", "5-hour window", response.five_hour),
         ("seven_day", "Weekly window", response.seven_day),
-        ("seven_day_opus", "Weekly Opus window", response.seven_day_opus),
+        (
+            "seven_day_opus",
+            "Weekly Opus window",
+            response.seven_day_opus,
+        ),
     ] {
         let Some(window) = window else {
             continue;
@@ -306,9 +314,14 @@ fn parse_codex_usage(body: &str, now: TimestampMs) -> Result<AgentLimits> {
     if let Some(rate_limit) = response.rate_limit {
         for (name, fallback_label, window) in [
             ("primary_window", "5-hour window", rate_limit.primary_window),
-            ("secondary_window", "Weekly window", rate_limit.secondary_window),
+            (
+                "secondary_window",
+                "Weekly window",
+                rate_limit.secondary_window,
+            ),
         ] {
-            if let Some(window) = window.and_then(|window| codex_window(name, fallback_label, window, now))
+            if let Some(window) =
+                window.and_then(|window| codex_window(name, fallback_label, window, now))
             {
                 windows.push(window);
             }
@@ -388,7 +401,9 @@ fn codex_homes() -> Vec<PathBuf> {
 fn fetch_error_reason(url: &str, error: &std::io::Error, agent: &str) -> String {
     let message = error.to_string();
     if message.contains("HTTP 401") || message.contains("HTTP 403") {
-        format!("{url} rejected the stored OAuth token ({message}); re-authenticate with `{agent}` to refresh it")
+        format!(
+            "{url} rejected the stored OAuth token ({message}); re-authenticate with `{agent}` to refresh it"
+        )
     } else {
         format!("failed to fetch {url}: {message}")
     }
@@ -449,11 +464,7 @@ fn print_agent_limits(limits: &AgentLimits, shared: &SharedArgs, now: TimestampM
 
 fn window_line(window: &WindowLimit, shared: &SharedArgs, now: TimestampMs) -> String {
     let percent = window.utilization_percent;
-    let bar = color(
-        shared,
-        utilization_bar(percent),
-        utilization_color(percent),
-    );
+    let bar = color(shared, utilization_bar(percent), utilization_color(percent));
     let reset = match window.resets_at {
         Some(resets_at) if resets_at.as_millis() > now.as_millis() => {
             let minutes = resets_at.duration_since(now) / MILLIS_PER_MINUTE;
@@ -640,7 +651,10 @@ mod tests {
         });
         let _env = EnvVarsGuard::set_many([
             ("CLAUDE_CODE_OAUTH_TOKEN", None),
-            ("CLAUDE_CONFIG_DIR", Some(fixture.root().as_os_str().to_os_string())),
+            (
+                "CLAUDE_CONFIG_DIR",
+                Some(fixture.root().as_os_str().to_os_string()),
+            ),
         ]);
 
         assert_eq!(claude_access_token().as_deref(), Some("sk-ant-oat-fixture"));
@@ -653,7 +667,10 @@ mod tests {
         });
         let _env = EnvVarsGuard::set_many([
             ("CLAUDE_CODE_OAUTH_TOKEN", Some("from-env".into())),
-            ("CLAUDE_CONFIG_DIR", Some(fixture.root().as_os_str().to_os_string())),
+            (
+                "CLAUDE_CONFIG_DIR",
+                Some(fixture.root().as_os_str().to_os_string()),
+            ),
         ]);
 
         assert_eq!(claude_access_token().as_deref(), Some("from-env"));
@@ -664,7 +681,10 @@ mod tests {
         let fixture = fs_fixture!({});
         let _env = EnvVarsGuard::set_many([
             ("CLAUDE_CODE_OAUTH_TOKEN", None),
-            ("CLAUDE_CONFIG_DIR", Some(fixture.root().as_os_str().to_os_string())),
+            (
+                "CLAUDE_CONFIG_DIR",
+                Some(fixture.root().as_os_str().to_os_string()),
+            ),
         ]);
 
         assert_eq!(claude_access_token(), None);
@@ -675,7 +695,10 @@ mod tests {
         let fixture = fs_fixture!({
             "auth.json": r#"{"tokens": {"access_token": "codex-fixture-token", "account_id": "acct-123"}, "OPENAI_API_KEY": null}"#,
         });
-        let _env = EnvVarsGuard::set_many([("CODEX_HOME", Some(fixture.root().as_os_str().to_os_string()))]);
+        let _env = EnvVarsGuard::set_many([(
+            "CODEX_HOME",
+            Some(fixture.root().as_os_str().to_os_string()),
+        )]);
 
         let auth = codex_auth().unwrap();
         assert_eq!(auth.access_token, "codex-fixture-token");
@@ -687,7 +710,10 @@ mod tests {
         let fixture = fs_fixture!({
             "auth.json": r#"{"OPENAI_API_KEY": "sk-fixture"}"#,
         });
-        let _env = EnvVarsGuard::set_many([("CODEX_HOME", Some(fixture.root().as_os_str().to_os_string()))]);
+        let _env = EnvVarsGuard::set_many([(
+            "CODEX_HOME",
+            Some(fixture.root().as_os_str().to_os_string()),
+        )]);
 
         assert!(codex_auth().is_none());
     }

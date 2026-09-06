@@ -107,7 +107,11 @@ fn year_window(year: i32, current_year: i32, shared: &crate::cli::SharedArgs) ->
     let year_start = Day::from_ymd(year, 1, 1).unwrap_or(Day::parse("2000-01-01").unwrap());
     let year_end = Day::from_ymd(year, 12, 31).unwrap_or(year_start);
     let today = Day::parse(&format_date(utc_now(), shared.timezone.as_deref())).unwrap_or(year_end);
-    let default_end = if year == current_year { today } else { year_end };
+    let default_end = if year == current_year {
+        today
+    } else {
+        year_end
+    };
     let start = shared
         .since
         .as_deref()
@@ -187,10 +191,7 @@ fn compute_stats(
         .iter()
         .max_by_key(|project| project.total_tokens)
         .map(|project| NamedStat {
-            name: format_project_name(
-                &project.project_path,
-                &std::collections::HashMap::new(),
-            ),
+            name: format_project_name(&project.project_path, &std::collections::HashMap::new()),
             tokens: project.total_tokens,
             cost: project.total_cost,
         });
@@ -353,11 +354,7 @@ fn print_card(stats: &WrappedStats, shared: &crate::cli::SharedArgs) {
     }
     println!(
         "{}",
-        color(
-            shared,
-            format!("╰{}╯", "─".repeat(width + 4)),
-            Color::Blue
-        )
+        color(shared, format!("╰{}╯", "─".repeat(width + 4)), Color::Blue)
     );
 }
 
@@ -507,13 +504,7 @@ fn render_svg(stats: &WrappedStats) -> String {
             stats
                 .busiest_day
                 .as_ref()
-                .map(|day| {
-                    format!(
-                        "{} · {}",
-                        day.day.format(),
-                        compact_tokens(day.tokens)
-                    )
-                })
+                .map(|day| format!("{} · {}", day.day.format(), compact_tokens(day.tokens)))
                 .unwrap_or_else(|| "—".to_string()),
         ),
         (
@@ -570,8 +561,8 @@ fn render_svg(stats: &WrappedStats) -> String {
         let mut x = 48;
         for (index, agent) in stats.agents.iter().enumerate() {
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let width = (agent.tokens as f64 / stats.total_tokens as f64 * bar_width as f64).round()
-                as i64;
+            let width =
+                (agent.tokens as f64 / stats.total_tokens as f64 * bar_width as f64).round() as i64;
             if width <= 0 {
                 continue;
             }
@@ -616,7 +607,13 @@ mod tests {
 
     use super::*;
 
-    fn day(date: &str, tokens: u64, cost: f64, agents: &[(&str, u64)], models: &[(&str, u64)]) -> DailyAggregate {
+    fn day(
+        date: &str,
+        tokens: u64,
+        cost: f64,
+        agents: &[(&str, u64)],
+        models: &[(&str, u64)],
+    ) -> DailyAggregate {
         DailyAggregate {
             date: date.to_string(),
             total_tokens: tokens,
@@ -651,8 +648,20 @@ mod tests {
     fn fixture_days() -> Vec<DailyAggregate> {
         vec![
             // A three-day streak (Mon-Wed), a gap, then a two-day streak.
-            day("2026-03-02", 100, 1.0, &[("claude", 80), ("codex", 20)], &[("opus", 100)]),
-            day("2026-03-03", 300, 3.0, &[("claude", 300)], &[("opus", 200), ("gpt-5", 100)]),
+            day(
+                "2026-03-02",
+                100,
+                1.0,
+                &[("claude", 80), ("codex", 20)],
+                &[("opus", 100)],
+            ),
+            day(
+                "2026-03-03",
+                300,
+                3.0,
+                &[("claude", 300)],
+                &[("opus", 200), ("gpt-5", 100)],
+            ),
             day("2026-03-04", 200, 2.0, &[("codex", 200)], &[("gpt-5", 200)]),
             day("2026-03-08", 50, 0.5, &[("claude", 50)], &[("opus", 50)]),
             day("2026-03-09", 50, 0.5, &[("claude", 50)], &[("opus", 50)]),
@@ -664,7 +673,10 @@ mod tests {
         let stats = compute_stats(
             2026,
             &fixture_days(),
-            &[project("/Users/x/ccusage-clone", 900), project("/Users/x/other", 100)],
+            &[
+                project("/Users/x/ccusage-clone", 900),
+                project("/Users/x/other", 100),
+            ],
         );
 
         assert_eq!(stats.total_tokens, 700);
@@ -712,7 +724,11 @@ mod tests {
 
     #[test]
     fn json_carries_all_stats() {
-        let stats = compute_stats(2026, &fixture_days(), &[project("/Users/x/ccusage-clone", 5)]);
+        let stats = compute_stats(
+            2026,
+            &fixture_days(),
+            &[project("/Users/x/ccusage-clone", 5)],
+        );
         let report = stats_json(&stats);
 
         assert_eq!(report["year"], json!(2026));

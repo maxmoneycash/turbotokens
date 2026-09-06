@@ -94,8 +94,8 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
+    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
 
     use super::super::{
         parser::{normalize_droid_model_name, parse_token_usage},

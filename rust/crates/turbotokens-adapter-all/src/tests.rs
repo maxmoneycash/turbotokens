@@ -715,7 +715,7 @@ fn table_snapshot(
     })
 }
 
-fn isolated_agent_env(
+pub(super) fn isolated_agent_env(
     fixture: &turbotokens_test_support::Fixture,
     source_key: &'static str,
     source_value: OsString,
@@ -723,6 +723,7 @@ fn isolated_agent_env(
     let home = fixture.path("empty-home").into_os_string();
     let xdg_config = fixture.path("empty-xdg-config").into_os_string();
     let mut vars = [
+        "ANTIGRAVITY_DATA_DIR",
         "CLAUDE_CONFIG_DIR",
         "CODEX_HOME",
         "OPENCODE_DATA_DIR",

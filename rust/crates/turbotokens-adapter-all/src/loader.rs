@@ -891,7 +891,9 @@ pub(super) fn aggregate_rows(rows: Vec<AllRow>, kind: AgentReportKind) -> Vec<Al
 mod tests {
     use super::*;
     use turbotokens_cli::NamedPiStore;
-    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
+    use turbotokens_test_support::fs_fixture;
+
+    use crate::tests::isolated_agent_env;
 
     fn usage_summary(date: &str, input_tokens: u64) -> UsageSummary {
         UsageSummary {
@@ -1011,7 +1013,11 @@ mod tests {
             "omp/sessions/project-a/agent_inside-session.jsonl": r#"{"type":"message","timestamp":"2026-07-04T18:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":1}}}"#,
             "omp/sessions/project-a/agent_outside-session.jsonl": r#"{"type":"message","timestamp":"2026-07-05T18:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":20,"output":2}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path("empty-default"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path("empty-default").into_os_string(),
+        );
         let store_path = fixture.path("omp/sessions").to_string_lossy().into_owned();
         let shared = SharedArgs {
             json: true,
@@ -1089,7 +1095,11 @@ mod tests {
             "pi/sessions/project-a/agent_until-day.jsonl": r#"{"type":"message","timestamp":"2026-07-04T18:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":1}}}"#,
             "pi/sessions/project-a/agent_after-day.jsonl": r#"{"type":"message","timestamp":"2026-07-05T18:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":20,"output":2}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path("pi/sessions"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path("pi/sessions").into_os_string(),
+        );
         let shared = SharedArgs {
             json: true,
             mode: crate::cli::CostMode::Display,
@@ -1245,7 +1255,11 @@ mod tests {
         let fixture = fs_fixture!({
             ".pi/agent/sessions/project-a/agent_pi-session.jsonl": r#"{"type":"message","timestamp":"2099-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":20}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path(".pi/agent/sessions"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path(".pi/agent/sessions").into_os_string(),
+        );
         let shared = SharedArgs {
             json: true,
             mode: crate::cli::CostMode::Display,
@@ -1277,7 +1291,11 @@ mod tests {
         let fixture = fs_fixture!({
             "shared/sessions/project-a/agent_pi-session.jsonl": r#"{"type":"message","timestamp":"2099-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":20}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path("empty-default"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path("empty-default").into_os_string(),
+        );
         let path = fixture
             .path("shared/sessions")
             .to_string_lossy()
@@ -1315,7 +1333,11 @@ mod tests {
         let fixture = fs_fixture!({
             ".pi/agent/sessions/project-a/agent_pi-session.jsonl": r#"{"type":"message","timestamp":"2099-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":20}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path(".pi/agent/sessions"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path(".pi/agent/sessions").into_os_string(),
+        );
         let shared = SharedArgs {
             json: true,
             mode: crate::cli::CostMode::Display,
@@ -1347,7 +1369,11 @@ mod tests {
         let fixture = fs_fixture!({
             "shared/sessions/project-a/agent_pi-session.jsonl": r#"{"type":"message","timestamp":"2099-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":10,"output":20}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path("empty-default"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path("empty-default").into_os_string(),
+        );
         let shared_path = fixture
             .path("shared/sessions")
             .to_string_lossy()
@@ -1386,7 +1412,11 @@ mod tests {
         let fixture = fs_fixture!({
             "omp/sessions/project-a/agent_omp-session.jsonl": r#"{"type":"message","timestamp":"2099-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"input":30,"output":40}}}"#,
         });
-        let _pi_agent_dir = EnvVarGuard::set("PI_AGENT_DIR", fixture.path("empty-default"));
+        let _pi_agent_dir = isolated_agent_env(
+            &fixture,
+            "PI_AGENT_DIR",
+            fixture.path("empty-default").into_os_string(),
+        );
         let shared = SharedArgs {
             json: true,
             mode: crate::cli::CostMode::Display,

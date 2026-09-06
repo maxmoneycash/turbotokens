@@ -121,8 +121,8 @@ use super::report::{report_from_rows, summarize_entries};
 
 #[cfg(test)]
 mod tests {
-    use turbotokens_test_support::fs_fixture;
     use serde_json::json;
+    use turbotokens_test_support::fs_fixture;
 
     use super::super::parser::parse_otel_file;
     use super::*;

@@ -17,7 +17,13 @@ use crate::{
 const DEFAULT_DAYS: i64 = 364;
 
 /// Terminal cell colors, cold to hot; level 0 is a day without usage.
-const LEVEL_COLORS: [Color; 5] = [Color::Grey, Color::Blue, Color::Green, Color::Yellow, Color::Red];
+const LEVEL_COLORS: [Color; 5] = [
+    Color::Grey,
+    Color::Blue,
+    Color::Green,
+    Color::Yellow,
+    Color::Red,
+];
 
 /// GitHub-dark cell colors for the SVG, matching the terminal levels.
 const LEVEL_FILLS: [&str; 5] = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"];
@@ -32,7 +38,11 @@ struct DayCell {
 
 impl DayCell {
     fn value(&self, by_cost: bool) -> f64 {
-        if by_cost { self.cost } else { self.tokens as f64 }
+        if by_cost {
+            self.cost
+        } else {
+            self.tokens as f64
+        }
     }
 }
 
@@ -70,11 +80,16 @@ pub(super) fn run(args: &HeatmapArgs) -> Result<()> {
     }
 
     if wants_json(shared) {
-        let output = json!(cells.iter().map(|cell| json!({
-            "date": cell.day.format(),
-            "tokens": cell.tokens,
-            "cost": cell.cost,
-        })).collect::<Vec<_>>());
+        let output = json!(
+            cells
+                .iter()
+                .map(|cell| json!({
+                    "date": cell.day.format(),
+                    "tokens": cell.tokens,
+                    "cost": cell.cost,
+                }))
+                .collect::<Vec<_>>()
+        );
         print_json_or_jq(output, shared.jq.as_deref(), shared.no_cost)?;
         return Ok(());
     }
@@ -110,7 +125,9 @@ fn parse_bound(bound: &str) -> Option<Day> {
 fn dense_cells(start: Day, end: Day, aggregates: &[DailyAggregate]) -> Vec<DayCell> {
     let by_date: BTreeMap<Day, (u64, f64)> = aggregates
         .iter()
-        .filter_map(|row| Day::parse(&row.date).map(|day| (day, (row.total_tokens, row.total_cost))))
+        .filter_map(|row| {
+            Day::parse(&row.date).map(|day| (day, (row.total_tokens, row.total_cost)))
+        })
         .collect();
     let mut cells = Vec::new();
     let mut day = start;
@@ -152,7 +169,11 @@ fn week_floor(day: Day) -> Day {
 /// Month label for each week column, when the month changes vs the previous
 /// column. Columns are counted from `grid_start`; a column is labeled by the
 /// first in-window day it contains.
-fn month_labels(window_start: Day, grid_start: Day, columns: usize) -> Vec<Option<(usize, String)>> {
+fn month_labels(
+    window_start: Day,
+    grid_start: Day,
+    columns: usize,
+) -> Vec<Option<(usize, String)>> {
     let mut labels = Vec::with_capacity(columns);
     let mut previous_month = 0;
     for column in 0..columns {
@@ -214,11 +235,7 @@ fn print_terminal_grid(cells: &[DayCell], by_cost: bool, shared: &crate::cli::Sh
             match by_day.get(&day) {
                 Some(cell) if (start..=end).contains(&day) => {
                     let cell_level = level(cell.value(by_cost), max);
-                    line.push_str(&color(
-                        shared,
-                        "██",
-                        LEVEL_COLORS[cell_level],
-                    ));
+                    line.push_str(&color(shared, "██", LEVEL_COLORS[cell_level]));
                 }
                 _ => line.push_str("  "),
             }
@@ -305,7 +322,11 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
         let title = if by_cost {
             format!("{} · {}", cell.day.format(), format_currency(cell.cost))
         } else {
-            format!("{} · {} tokens", cell.day.format(), format_number(cell.tokens))
+            format!(
+                "{} · {} tokens",
+                cell.day.format(),
+                format_number(cell.tokens)
+            )
         };
         svg.push_str(&format!(
             "<rect x=\"{x}\" y=\"{y}\" width=\"{SVG_CELL}\" height=\"{SVG_CELL}\" rx=\"3\" fill=\"{fill}\"><title>{title}</title></rect>\n"

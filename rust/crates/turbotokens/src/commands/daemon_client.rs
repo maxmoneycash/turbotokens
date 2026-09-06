@@ -2,10 +2,10 @@
 //! with the server (`daemon.rs`). Everything here fails soft: any error,
 //! missing socket, or incompatible daemon falls back to the normal load path.
 
-#[cfg(unix)]
-use std::time::Duration;
 #[cfg(any(unix, test))]
 use std::collections::BTreeMap;
+#[cfg(unix)]
+use std::time::Duration;
 
 #[cfg(any(unix, test))]
 use serde::{Deserialize, Serialize};

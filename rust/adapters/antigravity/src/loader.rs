@@ -82,8 +82,8 @@ fn deduplicate_events(
 mod tests {
     use std::ffi::OsString;
 
-    use turbotokens_test_support::{EnvVarsGuard, Fixture};
     use serde_json::json;
+    use turbotokens_test_support::{EnvVarsGuard, Fixture};
 
     use super::*;
     use crate::parser::test_support::{

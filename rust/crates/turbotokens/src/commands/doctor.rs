@@ -215,7 +215,11 @@ fn check_cache() -> Check {
         let value = value.trim();
         if value.eq_ignore_ascii_case("off") || value.eq_ignore_ascii_case("false") || value == "0"
         {
-            return Check::new("parse cache", Status::Info, "disabled via TURBOTOKENS_CACHE");
+            return Check::new(
+                "parse cache",
+                Status::Info,
+                "disabled via TURBOTOKENS_CACHE",
+            );
         }
     }
     let root = env::var("TURBOTOKENS_CACHE_DIR")

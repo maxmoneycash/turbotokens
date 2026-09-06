@@ -12,11 +12,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use serde_json::json;
 use turbotokens_core::{
     Color, TimestampMs, TokenUsageRaw, cli::SharedArgs, color, fast::FxHashMap, format_currency,
     format_number, format_rfc3339_millis, json_float, terminal_width, truncate_to_width, utc_now,
 };
-use serde_json::json;
 
 /// Window for the trailing burn rate and for counting active sessions.
 pub const ACTIVITY_WINDOW: Duration = Duration::from_secs(300);
@@ -508,7 +508,10 @@ pub fn render_prometheus(metrics: &LiveMetrics) -> String {
     }
     text.push_str("# HELP turbotokens_cost_usd_total Cost of today's usage in USD.\n");
     text.push_str("# TYPE turbotokens_cost_usd_total gauge\n");
-    text.push_str(&format!("turbotokens_cost_usd_total {}\n", metrics.cost_usd));
+    text.push_str(&format!(
+        "turbotokens_cost_usd_total {}\n",
+        metrics.cost_usd
+    ));
     text.push_str(
         "# HELP turbotokens_tokens_per_minute Token burn rate over the trailing 5 minutes.\n",
     );
@@ -525,7 +528,9 @@ pub fn render_prometheus(metrics: &LiveMetrics) -> String {
             escape_label_value(model),
         ));
     }
-    text.push_str("# HELP turbotokens_sessions_active Sessions with activity in the last 5 minutes.\n");
+    text.push_str(
+        "# HELP turbotokens_sessions_active Sessions with activity in the last 5 minutes.\n",
+    );
     text.push_str("# TYPE turbotokens_sessions_active gauge\n");
     text.push_str(&format!(
         "turbotokens_sessions_active {}\n",

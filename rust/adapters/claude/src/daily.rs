@@ -1,4 +1,11 @@
-use std::{fs, hash::Hasher, path::{Path, PathBuf}, sync::Arc, thread, time::UNIX_EPOCH};
+use std::{
+    fs,
+    hash::Hasher,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+    time::UNIX_EPOCH,
+};
 
 use jiff::tz::TimeZone as JiffTimeZone;
 use memchr::{memchr, memmem};
@@ -681,15 +688,7 @@ pub(super) fn finish_daily_raw_entry(
     // irrelevant there; the bulk report path consumes the raw entries and
     // moves their strings into the loaded entries instead.
     let mut interner = DateInterner::new();
-    finish_daily_raw_entry_owned(
-        raw.clone(),
-        project,
-        tz,
-        mode,
-        pricing,
-        &mut interner,
-        out,
-    );
+    finish_daily_raw_entry_owned(raw.clone(), project, tz, mode, pricing, &mut interner, out);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -704,13 +703,8 @@ pub(super) fn finish_daily_raw_entry_owned(
 ) {
     let usage = raw.usage;
     let date = interner.intern(raw.timestamp_ms, tz);
-    let (cost, missing_pricing_model) = cost_and_missing_model_for_usage(
-        raw.model.as_deref(),
-        usage,
-        raw.cost_usd,
-        mode,
-        pricing,
-    );
+    let (cost, missing_pricing_model) =
+        cost_and_missing_model_for_usage(raw.model.as_deref(), usage, raw.cost_usd, mode, pricing);
     let model = raw.model.and_then(|model| {
         if model == "<synthetic>" {
             None
@@ -748,8 +742,13 @@ pub(super) fn finish_daily_raw_entry_owned(
         is_sidechain: raw.is_sidechain,
     });
     for (index, (advisor_model, advisor_usage)) in raw.advisors.iter().enumerate() {
-        let (cost, missing_pricing_model) =
-            cost_and_missing_model_for_usage(Some(advisor_model), *advisor_usage, None, mode, pricing);
+        let (cost, missing_pricing_model) = cost_and_missing_model_for_usage(
+            Some(advisor_model),
+            *advisor_usage,
+            None,
+            mode,
+            pricing,
+        );
         out.push(DailyLoadedEntry {
             timestamp_ms: raw.timestamp_ms,
             date: Arc::clone(&date),

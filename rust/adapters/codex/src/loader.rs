@@ -175,8 +175,8 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
 mod tests {
     use super::*;
 
-    use turbotokens_test_support::fs_fixture;
     use serde_json::json;
+    use turbotokens_test_support::fs_fixture;
 
     use crate::paths::CodexUsageSource;
 

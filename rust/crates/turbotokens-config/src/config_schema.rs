@@ -1015,7 +1015,10 @@ fn wrap_root_schema(schema: &mut Value) {
             root_definition.insert(key.to_string(), value);
         }
     }
-    definitions.insert("turbotokens-config".to_string(), Value::Object(root_definition));
+    definitions.insert(
+        "turbotokens-config".to_string(),
+        Value::Object(root_definition),
+    );
     root.insert(
         "$ref".to_string(),
         Value::String("#/definitions/turbotokens-config".to_string()),
@@ -1164,9 +1167,26 @@ mod tests {
             &schema,
             "turbotokens-config",
             &[
-                "$schema", "amp", "antigravity", "claude", "codebuff", "codex", "commands",
-                "copilot", "defaults", "gemini", "goose", "grok", "hermes", "kilo", "kimi",
-                "opencode", "openclaw", "pi", "qwen", "droid",
+                "$schema",
+                "amp",
+                "antigravity",
+                "claude",
+                "codebuff",
+                "codex",
+                "commands",
+                "copilot",
+                "defaults",
+                "gemini",
+                "goose",
+                "grok",
+                "hermes",
+                "kilo",
+                "kimi",
+                "opencode",
+                "openclaw",
+                "pi",
+                "qwen",
+                "droid",
             ],
         );
         assert!(

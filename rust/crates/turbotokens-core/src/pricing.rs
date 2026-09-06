@@ -1564,8 +1564,8 @@ mod tests {
         BUILD_TIME_MODELS_DEV_JSON, BUILD_TIME_PRICING_JSON, Pricing, PricingMap,
         embedded_models_dev_pricing, long_context_split_threshold, model_without_date_suffix,
     };
-    use turbotokens_test_support::fs_fixture;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use turbotokens_test_support::fs_fixture;
 
     #[test]
     fn loads_embedded_claude_pricing() {
@@ -2665,8 +2665,8 @@ mod tests {
 
     mod overrides {
         use super::super::{Pricing, PricingMap};
-        use turbotokens_cli::PricingOverride;
         use std::collections::BTreeMap;
+        use turbotokens_cli::PricingOverride;
 
         fn build_overrides<F: FnOnce(&mut PricingOverride)>(
             model: &str,

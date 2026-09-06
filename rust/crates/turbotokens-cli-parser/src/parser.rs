@@ -3,9 +3,9 @@ use std::{ffi::OsString, path::PathBuf};
 use crate::arg_parser::ArgParser;
 use crate::help::{print_help_and_exit, print_version_and_exit};
 use turbotokens_cli::{
-    ANTIGRAVITY_AGENT_REPORTS, AgentCommandArgs, AgentReportKind, BlocksArgs, CliConfig, CodexSpeed,
-    Command, CompletionShell, CompletionsArgs, CostMode, CostSource, DaemonAction, DaemonArgs,
-    DailyArgs, HeatmapArgs, ImportArgs, LimitsArgs, LimitsScope, LiveAgent, LiveArgs,
+    ANTIGRAVITY_AGENT_REPORTS, AgentCommandArgs, AgentReportKind, BlocksArgs, CliConfig,
+    CodexSpeed, Command, CompletionShell, CompletionsArgs, CostMode, CostSource, DaemonAction,
+    DaemonArgs, DailyArgs, HeatmapArgs, ImportArgs, LimitsArgs, LimitsScope, LiveAgent, LiveArgs,
     OPENCODE_AGENT_REPORTS, STANDARD_AGENT_REPORTS, SessionArgs, SharedArgs, SortOrder,
     StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs, WrappedArgs, ZCODE_AGENT_REPORTS,
     normalize_date_bound,
@@ -60,7 +60,12 @@ impl Cli {
     where
         I: IntoIterator<Item = OsString>,
     {
-        Self::parse_from_with_config(args, &turbotokens_cli::NoConfig, 5.0, env!("CARGO_PKG_VERSION"))
+        Self::parse_from_with_config(
+            args,
+            &turbotokens_cli::NoConfig,
+            5.0,
+            env!("CARGO_PKG_VERSION"),
+        )
     }
 
     pub fn parse_from_with_config<I>(
@@ -514,13 +519,9 @@ fn parse_command(
             Command::Qwen,
         ),
         "openclaw" => parse_openclaw_command(parser, shared, config),
-        "zcode" => parse_basic_agent_command(
-            parser,
-            shared,
-            "zcode",
-            ZCODE_AGENT_REPORTS,
-            Command::ZCode,
-        ),
+        "zcode" => {
+            parse_basic_agent_command(parser, shared, "zcode", ZCODE_AGENT_REPORTS, Command::ZCode)
+        }
         _ => Err(format!("Unknown command '{command}'")),
     }
 }

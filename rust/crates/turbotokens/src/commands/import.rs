@@ -23,10 +23,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    Context as _, ModelBreakdown, Result, UsageSummary,
-    cli::ImportArgs,
-    cli_error, filter_and_sort_summaries, print_json_or_jq, print_usage_table,
-    session_summary_json, sort_summaries, summary_json, totals_json, wants_json,
+    Context as _, ModelBreakdown, Result, UsageSummary, cli::ImportArgs, cli_error,
+    filter_and_sort_summaries, print_json_or_jq, print_usage_table, session_summary_json,
+    sort_summaries, summary_json, totals_json, wants_json,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -165,7 +164,11 @@ pub(super) fn run(args: &ImportArgs) -> Result<()> {
         let mut output = serde_json::Map::new();
         output.insert(kind.json_key().to_string(), json!(rows_json));
         output.insert("totals".to_string(), totals_json(&rows));
-        print_json_or_jq(Value::Object(output), args.shared.jq.as_deref(), args.shared.no_cost)?;
+        print_json_or_jq(
+            Value::Object(output),
+            args.shared.jq.as_deref(),
+            args.shared.no_cost,
+        )?;
         return Ok(());
     }
 
@@ -489,7 +492,11 @@ mod tests {
             );
         }
         let error = parse_export("{}", path()).unwrap_err();
-        assert!(error.to_string().contains("doesn't look like a ccusage export"));
+        assert!(
+            error
+                .to_string()
+                .contains("doesn't look like a ccusage export")
+        );
         assert!(error.to_string().contains("\"daily\""));
         assert!(error.to_string().contains("totals"));
     }
@@ -518,7 +525,9 @@ mod tests {
     fn json_output_matches_native_daily_shape() {
         let (kind, mut rows) = parse_export(CLASSIC_DAILY, path()).unwrap();
         let shared = SharedArgs::default();
-        filter_and_sort_summaries(&mut rows, &shared, |row| row.date.as_deref().unwrap_or_default());
+        filter_and_sort_summaries(&mut rows, &shared, |row| {
+            row.date.as_deref().unwrap_or_default()
+        });
         assert_eq!(kind.json_key(), "daily");
 
         let output = json!({
@@ -545,7 +554,9 @@ mod tests {
             order: SortOrder::Desc,
             ..SharedArgs::default()
         };
-        filter_and_sort_summaries(&mut rows, &shared, |row| row.date.as_deref().unwrap_or_default());
+        filter_and_sort_summaries(&mut rows, &shared, |row| {
+            row.date.as_deref().unwrap_or_default()
+        });
 
         assert_eq!(rows[0].date.as_deref(), Some("2026-04-16"));
     }

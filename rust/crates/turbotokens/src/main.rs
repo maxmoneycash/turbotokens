@@ -11,12 +11,12 @@ pub(crate) use blocks::{
     block_json, calculate_burn_rate, filter_blocks_by_date, format_remaining_time,
     identify_session_blocks, print_active_block_detail, print_blocks_table, sort_blocks,
 };
-#[cfg(test)]
-pub(crate) use turbotokens_adapter_common::chunk_file_indexes_by_size;
-pub(crate) use turbotokens_core::*;
 use cli::{AgentCommandArgs, AgentReportKind, Command};
 #[cfg(test)]
 use pricing::PricingMap;
+#[cfg(test)]
+pub(crate) use turbotokens_adapter_common::chunk_file_indexes_by_size;
+pub(crate) use turbotokens_core::*;
 
 #[cfg(not(target_os = "windows"))]
 #[global_allocator]
@@ -77,8 +77,8 @@ fn main() -> Result<()> {
 mod tests {
     use std::{collections::HashMap, fs, sync::Arc};
 
-    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
     use serde_json::json;
+    use turbotokens_test_support::{EnvVarGuard, fs_fixture};
 
     use super::*;
     use crate::{
@@ -149,7 +149,10 @@ mod tests {
             }
         }
 
-        assert_eq!(env!("TURBOTOKENS_VERSION"), version.expect("workspace version"));
+        assert_eq!(
+            env!("TURBOTOKENS_VERSION"),
+            version.expect("workspace version")
+        );
     }
 
     #[test]

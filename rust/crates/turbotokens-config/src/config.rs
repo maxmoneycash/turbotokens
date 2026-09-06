@@ -1074,7 +1074,9 @@ mod tests {
 
         assert_eq!(
             config.config_error(),
-            Some("Invalid turbotokens config: pi.stores[0].name must match ^[a-z][a-z0-9_-]{0,31}$")
+            Some(
+                "Invalid turbotokens config: pi.stores[0].name must match ^[a-z][a-z0-9_-]{0,31}$"
+            )
         );
     }
 
@@ -1117,7 +1119,9 @@ mod tests {
 
         assert_eq!(
             config.config_error(),
-            Some("Invalid turbotokens config: pi.stores[0] ('omp'): path must be a non-empty string")
+            Some(
+                "Invalid turbotokens config: pi.stores[0] ('omp'): path must be a non-empty string"
+            )
         );
     }
 
@@ -1166,7 +1170,10 @@ mod tests {
         ConfigContext::from_args(&[
             "daily".to_string(),
             "--config".to_string(),
-            fixture.path("turbotokens.json").to_string_lossy().into_owned(),
+            fixture
+                .path("turbotokens.json")
+                .to_string_lossy()
+                .into_owned(),
         ])
     }
 }
