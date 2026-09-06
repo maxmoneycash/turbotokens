@@ -36,7 +36,7 @@ Start with a daily report across the agents detected on your machine:
 turbotokens
 ```
 
-<img src="assets/daily-report.png" alt="Example daily report showing input, output, cache tokens, and estimated cost" width="900">
+<img src="assets/daily-report.png?v=bf1245ef6d57" alt="Example daily report showing input, output, cache tokens, and estimated cost" width="900">
 
 ```sh
 turbotokens codex daily                      # One agent
@@ -69,9 +69,9 @@ turbotokens wrapped --year 2026 --svg wrapped.svg
 <details>
 <summary>Preview the heatmap and yearly summary</summary>
 
-<img src="assets/heatmap.svg" alt="Sample year of daily usage, with darker green cells indicating more tokens" width="900">
+<img src="assets/heatmap.svg?v=6c3d1de4262d" alt="Sample year of daily usage, with darker green cells indicating more tokens" width="900">
 
-<img src="assets/wrapped.svg" alt="Sample yearly summary with token totals, estimated cost, and usage highlights" width="900">
+<img src="assets/wrapped.svg?v=f61c5b7e6065" alt="Sample yearly summary with token totals, estimated cost, and usage highlights" width="900">
 
 Illustrative data. These README previews use a light presentation theme; CLI exports use a dark theme.
 
@@ -89,7 +89,7 @@ Report detail depends on the data each agent records. The [adapter notes](rust/a
 
 The Claude adapter caches parsed usage for repeated reports. This benchmark measures the released binary on synthetic logs with the cache enabled and disabled, checking that every run produces byte-identical JSON.
 
-<img src="assets/scaling-chart.png" alt="Measured report time versus log size for cached and uncached Claude reports; exact results and methodology are linked below" width="900">
+<img src="assets/scaling-chart.png?v=9002d98e3bcb" alt="Measured report time versus log size for cached and uncached Claude reports; exact results and methodology are linked below" width="900">
 
 [Measurements and methodology](rust/bench/README.md) include the hardware, raw samples, dataset generator, and reproduction command. The horizontal axis measures bytes of logs read. Token totals are usage counters in those logs, not text that turbotokens tokenizes.
 
