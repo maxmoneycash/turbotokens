@@ -22,6 +22,7 @@ try {
   assert.match(run(executable, ['heatmap', '--help']), /--svg/);
   assert.match(run(executable, ['wrapped', '--help']), /--year/);
   assert.match(run(executable, ['limits', '--help']), /plan-limit/);
+  assert.match(run(executable, ['completions', '--help']), /bash\|zsh\|fish/);
   const installed = path.join(temporary, 'node_modules', 'turbotokens');
   fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
   assert.throws(() => run(executable, ['--version']), error => error.status === 1 && /binary is missing/.test(error.stderr));

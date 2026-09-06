@@ -33,6 +33,16 @@ At the largest size, the daily elapsed-time ratio is 3.649209125 / 0.0128925 = *
 
 **Limits:** this tests Claude logs, not all supported agents. Six large files do not represent a history with thousands of short sessions. File count, cache state, transcript contents, memory pressure, and hardware matter. Recorded token counters are numbers in the logs; the tools are not tokenizing 50 billion tokens of text. These results do not measure interactive UI rendering, app installation, subscription APIs, or live-event latency.
 
+## A history with more files
+
+[comparison-many-files.json](results/comparison-many-files.json) checks the daily commands on the same 72 MB / ~1B-token-counter dataset redistributed across **1,000 files**. The recorded medians are **12.66 ms** for turbotokens and **71.94 ms** for ccusage, with the same four-category count checks and five rotating runs. This adds a different file shape; the records remain synthetic.
+
+```sh
+python3 rust/bench/shard_data.py /tmp/tt-cache-scaling/tok-1B /tmp/tt-many-files/tok-1B 1000
+```
+
+Then use `compare.py --report daily --sizes 1 --data /tmp/tt-many-files` with the same binary paths and a separate `--output`. The destination of `shard_data.py` must be new.
+
 ## Reproduce the comparisons
 
 Use Python 3 and native binaries for the same architecture. Pin versions before measuring. Do not compare an ARM turbotokens build with a competitor running under Rosetta.

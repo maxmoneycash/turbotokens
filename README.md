@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/hero.svg?v=5de32f436f6b" alt="turbotokens: Know what your coding agents spend. Native Rust CLI for 18 AI coding agents." width="100%">
+  <picture>
+    <source media="(max-width: 600px)" srcset="assets/hero-mobile.svg">
+    <img src="assets/hero.svg?v=5de32f436f6b" alt="turbotokens: Know what your coding agents spend. Native Rust CLI for 18 AI coding agents." width="100%">
+  </picture>
 </p>
 
 <p align="center">
@@ -75,6 +78,8 @@ We benchmark **released native ARM64 binaries**, including the current Rust vers
 <img src="assets/comparison-daily.png?v=e488523f5acf" alt="Daily JSON report benchmark: turbotokens stays between 11 and 17 milliseconds across 72 MB to 3.63 GB of synthetic logs; ccusage takes 78 milliseconds to 4.49 seconds. Full measurements are linked below." width="100%">
 
 At **3.63 GB**, turbotokens completed a cached daily report in **12.9 ms**, compared with **3,649 ms** for ccusage: about **283× faster in this test**. Both commands use `claude daily --offline --json`. No daemon is running.
+
+A separate check across **1,000 smaller files** (72 MB total) took **12.7 ms** for turbotokens and **71.9 ms** for ccusage. File count and workload shape matter; the [raw results](rust/bench/results/comparison-many-files.json) include this case too.
 
 ### Monthly reports: compared with both tools
 

@@ -1,0 +1,68 @@
+{
+  "measured_at": "2026-09-06T11:17:01.289686+00:00",
+  "host": "macOS-26.6-x86_64-i386-64bit",
+  "processor": "Apple M1 Max",
+  "tools": {
+    "turbotokens": {
+      "version": "turbotokens 1.1.0",
+      "sha256": "15403ae9fb8c070affb1cdb0352ec9a8f2a457d074ebdcbb553708d55655f425",
+      "file": "Mach-O 64-bit executable arm64"
+    },
+    "ccusage": {
+      "version": "ccusage 20.0.20",
+      "sha256": "0da92f9ba7c1d78d54a8664d3d9a0f4a8565c67889590ec8859e75167a4a15ce",
+      "file": "Mach-O 64-bit executable arm64"
+    }
+  },
+  "runs": 5,
+  "report": "daily",
+  "method": "Native JSON reports, warm application and OS caches, rotating tool order, subprocess wall time including output. Pricing is primed before timing. Four token categories match on every run. Same 72 MB dataset redistributed across 1,000 files with shard_data.py. No daemon.",
+  "commands": {
+    "turbotokens": [
+      "claude",
+      "daily",
+      "--offline",
+      "--json"
+    ],
+    "ccusage": [
+      "claude",
+      "daily",
+      "--offline",
+      "--json"
+    ]
+  },
+  "datasets": [
+    {
+      "recorded_tokens": 1000032623,
+      "bytes": 72394115,
+      "files": 1000,
+      "token_categories": {
+        "input": 12651917,
+        "output": 4747258,
+        "cache_creation": 31608730,
+        "cache_read": 951024718
+      },
+      "token_parity": true,
+      "seconds": {
+        "turbotokens": [
+          0.012539416999999942,
+          0.01266487500000002,
+          0.012605750000000082,
+          0.012918584000000122,
+          0.013263582999999857
+        ],
+        "ccusage": [
+          0.0716910420000001,
+          0.07352662499999996,
+          0.06868012499999998,
+          0.0720892919999998,
+          0.07193650000000007
+        ]
+      },
+      "median_seconds": {
+        "turbotokens": 0.01266487500000002,
+        "ccusage": 0.07193650000000007
+      }
+    }
+  ]
+}

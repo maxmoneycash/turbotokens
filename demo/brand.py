@@ -32,4 +32,21 @@ def masthead(height=480):
 
 if __name__ == '__main__':
     (ROOT / 'assets/hero.svg').write_text(masthead())
+    (ROOT / 'assets/hero-mobile.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" width="640" height="450" viewBox="0 0 640 450">
+<title>turbotokens: Know what your coding agents spend.</title>
+<rect width="640" height="450" rx="16" fill="#0c1413"/>
+<path d="M0 1H640" stroke="#b9f582" stroke-width="3"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<text x="32" y="49" fill="#b9f582" font-size="18" font-weight="700" letter-spacing="2">AI CODING AGENT ANALYTICS</text>
+<text x="27" y="151" fill="#f0f5ef" font-size="89" font-weight="800" letter-spacing="-5">turbotokens</text>
+<text x="32" y="211" fill="#d9e2da" font-size="32">Know what your</text>
+<text x="32" y="251" fill="#d9e2da" font-size="32">coding agents spend.</text>
+<path d="M32 284H608" stroke="#33403a"/>
+<g font-family="Menlo, Consolas, monospace" fill="#b9f582" font-size="28" font-weight="700">
+<text x="32" y="334">18 agents</text><text x="250" y="334">~13 ms*</text><text x="440" y="334">Rust</text>
+</g>
+<g fill="#a2b2a8" font-size="18">
+<text x="32" y="366">One CLI</text><text x="250" y="366">Repeat report</text><text x="440" y="366">Native binary</text>
+<text x="32" y="411">* Cached Claude daily report. See benchmarks below.</text>
+</g></g></svg>''')
     (ROOT / 'assets/social-card.svg').write_text(masthead(640).replace('<g font-family="Arial', '<g transform="translate(0,80)" font-family="Arial'))

@@ -106,7 +106,7 @@ def main():
               if platform.system() == 'Darwin' else platform.processor(),
               'tools': tools, 'runs': args.runs,
               'report': args.report,
-              'method': 'Native JSON reports, warm application and OS caches, rotating tool order, subprocess wall time including output. Pricing is primed before timing. Four token categories match on every run. Six files per synthetic dataset. No daemon.',
+              'method': 'Native JSON reports, warm application and OS caches, rotating tool order, subprocess wall time including output. Pricing is primed before timing. Four token categories match on every run. Identical synthetic source files per tool; file count is recorded per dataset. No daemon.',
               'commands': {name: command[1:] for name, command in commands.items()},
               'datasets': rows}
     args.output.parent.mkdir(parents=True, exist_ok=True)
