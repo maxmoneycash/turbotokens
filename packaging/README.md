@@ -15,7 +15,7 @@ python3 -m unittest discover -s packaging/tests -v
 node packaging/smoke-npm.cjs
 ```
 
-The npm smoke test packs the package, installs it in a temporary directory, exercises the executable shim, and checks missing-binary and checksum-failure handling. It downloads release assets and works on macOS, Linux, and Windows. The shell tests use a local archive and require a Unix shell.
+The npm smoke test packs the package, installs it in a temporary directory, exercises the executable shim, and checks missing-binary and checksum-failure handling. It downloads the published GitHub release binary, so help assertions must match that release, not unreleased commands on `main`. It works on macOS, Linux, and Windows. The shell tests use a local archive and require a Unix shell.
 
 ## Homebrew
 
