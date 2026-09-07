@@ -14,6 +14,14 @@ python3 demo/showcase.py --binary rust/target/release/turbotokens
 
 This creates a temporary dataset using seed 42, runs the actual daily, heatmap, and wrapped commands, and records 12 seconds of `live --offline` in a real PTY while synthetic events are appended. The child has an isolated environment. The live recording preserves elapsed time; its data feed is synthetic.
 
+To capture the machine-readable token feed instead of the dashboard:
+
+```sh
+timeout 5 rust/target/release/turbotokens stream --offline --interval 100
+```
+
+Each stdout line is one JSON usage event. `live --json` is the same stream. Ctrl-C or a broken pipe stops it.
+
 `fixtures/capture.json` records the version, date, and commands. Text, JSON, SVG, and asciicast output are saved in `fixtures/`. The SVG exports in `assets/` are direct CLI output, with no palette swap or edited statistics. The yearly card may show fewer project details for adapters that do not expose them.
 
 ## Render terminal captures
