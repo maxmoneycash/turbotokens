@@ -2,6 +2,8 @@
 
 **Fast usage reports, a live dashboard, and shareable stats for 18 AI coding agents.** Read the logs already on your machine, including Claude Code, Codex, OpenCode, Gemini, and more. No account or API key needed for local reports.
 
+If turbotokens helps you, [star the repo on GitHub](https://github.com/maxmoneycash/turbotokens) — it helps other developers find it.
+
 ## Install
 
 ```sh
