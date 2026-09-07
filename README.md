@@ -203,7 +203,7 @@ turbotokens wrapped --year 2026 --svg wrapped.svg
 
 Total tokens, active days, estimated cost, busiest day, longest streak, favorite weekday, top model, top project, and your agent split. SVGs stay crisp when resized and work in a README or personal site. Both commands also export JSON.
 
-**Share yours.** Post your card in the [show-and-tell thread](https://github.com/maxmoneycash/turbotokens/issues/5), or [share it on X](https://twitter.com/intent/tweet?text=My%20year%20in%20AI%20coding%2C%20visualized%20with%20turbotokens%3A%20https%3A%2F%2Fgithub.com%2Fmaxmoneycash%2Fturbotokens). Usage cards may include project names, so check the SVG before posting.
+**Share yours.** Post your card in the [show-and-tell thread](https://github.com/maxmoneycash/turbotokens/discussions/6), or [share it on X](https://twitter.com/intent/tweet?text=My%20year%20in%20AI%20coding%2C%20visualized%20with%20turbotokens%3A%20https%3A%2F%2Fgithub.com%2Fmaxmoneycash%2Fturbotokens). Usage cards may include project names, so check the SVG before posting.
 
 All product images here use **synthetic data**. Heatmap and wrapped previews are direct CLI exports. Your own exports contain your usage statistics and may include project names.
 
