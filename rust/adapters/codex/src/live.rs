@@ -369,6 +369,7 @@ impl CodexLiveState {
             model: event.model,
             usage,
             cost,
+            agent: "codex",
         };
         self.book.add_contribution(&live_event);
         if self.live {
@@ -466,6 +467,7 @@ impl CodexLiveState {
     fn snapshot_json(&self) -> serde_json::Value {
         json!({
             "type": "snapshot",
+            "agent": "codex",
             "date": self.book.today,
             "files": self.cursors.len(),
             "inputTokens": self.book.today_totals.input_tokens,
@@ -606,6 +608,7 @@ mod tests {
         assert_eq!(event.session_id.as_ref(), "session-a");
         assert_eq!(event.project.as_ref(), "codex");
         assert_eq!(event.model.as_deref(), Some("gpt-5"));
+        assert_eq!(event.agent, "codex");
         // input = input - cached, cacheRead = cached, output keeps reasoning.
         assert_eq!(event.usage.input_tokens, 90);
         assert_eq!(event.usage.cache_read_input_tokens, 10);

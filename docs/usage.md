@@ -57,6 +57,7 @@ Stdout is newline-delimited JSON. Each usage line looks like:
 {
   "type": "usage",
   "timestamp": "2026-07-27T18:00:00.000Z",
+  "agent": "claude",
   "project": "webapp",
   "sessionId": "sess-1",
   "model": "claude-sonnet-4",
@@ -69,7 +70,7 @@ Stdout is newline-delimited JSON. Each usage line looks like:
 }
 ```
 
-`totalTokens` is input + output + cache creation + cache read. `cost` is an estimate in USD. A broken pipe (`| head`) is a clean stop.
+`agent` is `claude`, `codex`, or `grok`. `totalTokens` is input + output + cache creation + cache read. `cost` is an estimate in USD. A broken pipe (`| head`) is a clean stop.
 
 ```sh
 # Follow new events as they arrive

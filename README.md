@@ -165,7 +165,7 @@ Send an alert when today's estimated cost crosses your threshold. Use `--alert-t
 ```sh
 # Newline-delimited JSON events (one usage object per line)
 turbotokens stream
-turbotokens stream --agent grok | jq -c '{model, tokens: .totalTokens, cost}'
+turbotokens stream --agent grok | jq -c '{agent, model, tokens: .totalTokens, cost}'
 
 # Prometheus metrics on your machine
 turbotokens live --serve 127.0.0.1:9090

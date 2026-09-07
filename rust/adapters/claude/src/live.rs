@@ -392,6 +392,7 @@ impl LiveState {
     fn snapshot_json(&self, files: usize) -> serde_json::Value {
         json!({
             "type": "snapshot",
+            "agent": "claude",
             "date": self.book.today,
             "files": files,
             "inputTokens": self.book.today_totals.input_tokens,
@@ -413,6 +414,7 @@ fn event_for_entry(entry: &DailyLoadedEntry, session_id: &Arc<str>) -> LiveEvent
         model: entry.model.clone(),
         usage: entry.usage,
         cost: entry.cost,
+        agent: "claude",
     }
 }
 
@@ -458,6 +460,7 @@ mod tests {
         assert_eq!(events[0].session_id.as_ref(), "sess-1");
         assert_eq!(events[0].project.as_ref(), "proj-a");
         assert_eq!(events[0].model.as_deref(), Some("claude-sonnet-4"));
+        assert_eq!(events[0].agent, "claude");
         assert_eq!(events[0].usage.output_tokens, 20);
         assert_eq!(events[0].total_tokens(), 135);
         assert_eq!(events[0].cost, 0.0123);

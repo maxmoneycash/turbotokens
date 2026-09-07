@@ -4,6 +4,7 @@
 
 - Add `turbotokens stream` for a newline-delimited JSON feed of live token events (`live --json` is the same stream). Each usage event includes `totalTokens`.
 - Add `turbotokens live --agent grok` / `stream --agent grok`, tailing Grok Build's `logs/unified.jsonl`.
+- Include `agent` on live/stream usage events and snapshots (`claude`, `codex`, or `grok`).
 - Restyle README graphics and native SVG exports: drop the glass frame and tracked type, use a flat page, and put terminal captures on a dark field.
 
 ## 1.1.2 · 2026-09-06

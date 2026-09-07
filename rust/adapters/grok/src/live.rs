@@ -356,6 +356,7 @@ impl GrokLiveState {
             model: loaded.model,
             usage,
             cost: loaded.cost,
+            agent: "grok",
         };
         self.book.add_contribution(&live_event);
         if self.live {
@@ -447,6 +448,7 @@ impl GrokLiveState {
     fn snapshot_json(&self) -> serde_json::Value {
         json!({
             "type": "snapshot",
+            "agent": "grok",
             "date": self.book.today,
             "files": self.cursors.len(),
             "inputTokens": self.book.today_totals.input_tokens,
@@ -530,6 +532,8 @@ mod tests {
         assert_eq!(event.session_id.as_ref(), "session-a");
         assert_eq!(event.project.as_ref(), "grok");
         assert_eq!(event.model.as_deref(), Some("grok-4.5"));
+        assert_eq!(event.agent, "grok");
+        assert_eq!(event.to_json()["agent"], "grok");
         assert_eq!(event.usage.input_tokens, 3_582);
         assert_eq!(event.usage.cache_read_input_tokens, 32_876);
         assert_eq!(event.usage.output_tokens, 251 + 99);

@@ -35,6 +35,8 @@ pub struct LiveEvent {
     pub model: Option<String>,
     pub usage: TokenUsageRaw,
     pub cost: f64,
+    /// Live source: `claude`, `codex`, or `grok`.
+    pub agent: &'static str,
 }
 
 impl LiveEvent {
@@ -46,6 +48,7 @@ impl LiveEvent {
         json!({
             "type": "usage",
             "timestamp": format_rfc3339_millis(TimestampMs::from_millis(self.timestamp_ms)),
+            "agent": self.agent,
             "project": self.project.as_ref(),
             "sessionId": self.session_id.as_ref(),
             "model": self.model,
@@ -819,6 +822,7 @@ mod tests {
                 cache_creation: None,
             },
             cost: 0.0123,
+            agent: "claude",
         };
 
         assert_eq!(
@@ -826,6 +830,7 @@ mod tests {
             json!({
                 "type": "usage",
                 "timestamp": "2026-07-27T18:00:00.000Z",
+                "agent": "claude",
                 "project": "webapp",
                 "sessionId": "sess-1",
                 "model": "claude-sonnet-4",
@@ -938,6 +943,7 @@ mod tests {
             model: None,
             usage,
             cost: 0.0,
+            agent: "claude",
         });
         book.add_contribution(&LiveEvent {
             timestamp_ms: utc_now().as_millis() - ACTIVITY_WINDOW.as_millis() as i64 - 60_000,
@@ -947,6 +953,7 @@ mod tests {
             model: None,
             usage,
             cost: 0.0,
+            agent: "claude",
         });
 
         assert_eq!(book.sessions_active(), 1);
