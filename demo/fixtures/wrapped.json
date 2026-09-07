@@ -1,17 +1,17 @@
 {
-  "activeDays": 204,
+  "activeDays": 206,
   "agents": [
     {
       "agent": "claude",
-      "cost": 160.03581510000006,
-      "sharePercent": 87.04409534362286,
-      "tokens": 225423480
+      "cost": 161.02728345000008,
+      "sharePercent": 87.02698570792103,
+      "tokens": 226617518
     },
     {
       "agent": "codex",
-      "cost": 77.83505750000005,
-      "sharePercent": 12.955904656377134,
-      "tokens": 33552708
+      "cost": 78.32712750000005,
+      "sharePercent": 12.973014292078966,
+      "tokens": 33781617
     }
   ],
   "busiestDay": {
@@ -20,8 +20,8 @@
     "tokens": 2063347
   },
   "favoriteDayOfWeek": {
-    "day": "Friday",
-    "tokens": 46404548
+    "day": "Monday",
+    "tokens": 46447846
   },
   "longestStreak": {
     "days": 19,
@@ -29,16 +29,16 @@
     "start": "2026-02-02"
   },
   "topModel": {
-    "cost": 160.03581510000006,
+    "cost": 161.02728345000008,
     "model": "claude-sonnet-4-20250514",
-    "tokens": 225423480
+    "tokens": 226617518
   },
   "topProject": {
-    "cost": 55.203150749999885,
+    "cost": 56.00712914999993,
     "project": "webapp",
-    "tokens": 78463997
+    "tokens": 79554018
   },
-  "totalCost": 237.87087260000004,
-  "totalTokens": 258976188,
+  "totalCost": 239.35441095000007,
+  "totalTokens": 260399135,
   "year": 2026
 }

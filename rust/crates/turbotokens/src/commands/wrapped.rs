@@ -403,17 +403,14 @@ fn stats_json(stats: &WrappedStats) -> Value {
 
 const SVG_WIDTH: i64 = 1280;
 const SVG_HEIGHT: i64 = 640;
-const FG: &str = "#172b4d";
-const MUTED: &str = "#516681";
-const BLUE: &str = "#0865ce";
-const GREEN: &str = "#087f79";
-const YELLOW: &str = "#9c6518";
-const RED: &str = "#c4435d";
-const PURPLE: &str = "#7254bb";
-const CYAN: &str = "#16799e";
-const ORANGE: &str = "#b45c20";
+const FG: &str = "#111111";
+const MUTED: &str = "#666666";
+const BLUE: &str = "#111111";
+const GREEN: &str = "#111111";
 
-const AGENT_COLORS: [&str; 7] = [BLUE, GREEN, YELLOW, RED, PURPLE, CYAN, ORANGE];
+const AGENT_COLORS: [&str; 7] = [
+    "#111111", "#3d3d3d", "#5c5c5c", "#7a7a7a", "#999999", "#b8b8b8", "#d6d6d6",
+];
 
 fn svg_text(x: i64, y: i64, size: i64, fill: &str, weight: &str, content: &str) -> String {
     format!(
@@ -447,24 +444,15 @@ fn render_svg(stats: &WrappedStats) -> String {
         stats.year
     ));
     svg.push_str(super::visual::GLASS);
-    svg.push_str("<rect x=\"32\" y=\"174\" width=\"598\" height=\"261\" rx=\"24\" fill=\"#fff\" fill-opacity=\".36\" stroke=\"#fff\" stroke-opacity=\".8\"/>\n");
 
-    svg.push_str(&svg_text(48, 110, 42, FG, "700", "turbotokens"));
-    svg.push_str(&svg_text(
-        352,
-        110,
-        42,
-        BLUE,
-        "700",
-        &format!("wrapped · {}", stats.year),
-    ));
+    svg.push_str(&svg_text(48, 96, 28, FG, "600", "turbotokens"));
     svg.push_str(&svg_text(
         48,
-        140,
-        15,
+        128,
+        16,
         MUTED,
         "400",
-        "Your year in AI coding.",
+        &format!("wrapped · {}", stats.year),
     ));
 
     // Big numbers, left column.
@@ -572,15 +560,12 @@ fn render_svg(stats: &WrappedStats) -> String {
             ));
             x += width;
         }
-        svg.push_str(&format!(
-            "<rect x=\"48\" y=\"{bar_y}\" width=\"{bar_width}\" height=\"{bar_height}\" fill=\"none\" stroke=\"{MUTED}\" stroke-width=\"1\" rx=\"6\"/>\n"
-        ));
         for (index, agent) in stats.agents.iter().enumerate() {
             let legend_x = 48 + (index % 5) as i64 * 236;
             let legend_y = bar_y + bar_height + 32 + (index / 5) as i64 * 28;
             let fill = AGENT_COLORS[index % AGENT_COLORS.len()];
             svg.push_str(&format!(
-                "<rect x=\"{legend_x}\" y=\"{}\" width=\"12\" height=\"12\" rx=\"3\" fill=\"{fill}\"/>\n",
+                "<rect x=\"{legend_x}\" y=\"{}\" width=\"12\" height=\"12\" fill=\"{fill}\"/>\n",
                 legend_y - 11
             ));
             let label = format!("{} {:.0}%", agent.agent, agent.share_percent);

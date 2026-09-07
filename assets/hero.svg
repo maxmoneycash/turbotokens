@@ -1,42 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="480" viewBox="0 0 1280 480">
-<title>turbotokens: Know what your coding agents spend.</title>
-<desc>A native Rust CLI for usage reports, live telemetry, and shareable statistics across 18 AI coding agents.</desc>
-<svg width="100%" height="100%" viewBox="0 0 1280 640" preserveAspectRatio="none" aria-hidden="true">
-<defs>
-  <linearGradient id="glass-sky" x2="1" y2="1"><stop stop-color="#d9e9ff"/><stop offset=".46" stop-color="#f1f6fc"/><stop offset="1" stop-color="#b9d8f6"/></linearGradient>
-  <linearGradient id="glass-wave" x2="1" y2="1"><stop stop-color="#a5c7fb"/><stop offset=".52" stop-color="#6aa8ec"/><stop offset="1" stop-color="#c5eaf0"/></linearGradient>
-  <linearGradient id="glass-frost" x2=".8" y2="1"><stop stop-color="#fff" stop-opacity=".84"/><stop offset=".52" stop-color="#fff" stop-opacity=".59"/><stop offset="1" stop-color="#edf6ff" stop-opacity=".73"/></linearGradient>
-  <linearGradient id="glass-rim" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".35"/><stop offset=".68" stop-color="#8daed4" stop-opacity=".45"/><stop offset="1" stop-color="#fff"/></linearGradient>
-  <filter id="glass-soft" x="-.5" y="-.5" width="2" height="2" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="24"/></filter>
-  <filter id="glass-shadow" x="-.1" y="-.2" width="1.2" height="1.4" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="10"/></filter>
-  <clipPath id="glass-clip"><rect width="1280" height="640" rx="42"/></clipPath>
-</defs>
-<g clip-path="url(#glass-clip)">
-  <rect width="1280" height="640" fill="url(#glass-sky)"/>
-  <path d="M860-80C700 140 1020 300 730 710H1380V-80Z" fill="url(#glass-wave)"/>
-  <path d="M980-70C790 175 1190 325 840 730" fill="none" stroke="#fff" stroke-opacity=".52" stroke-width="3"/>
-  <g filter="url(#glass-soft)"><ellipse cx="160" cy="580" rx="350" ry="125" fill="#b5cfef"/><ellipse cx="1150" cy="160" rx="230" ry="190" fill="#b8cbf4"/><path d="M1050-50C800 200 1150 480 900 710" stroke="#75b8de" stroke-width="80" fill="none"/></g>
-  <rect x="15" y="22" width="1250" height="606" rx="36" fill="#396697" opacity=".18" filter="url(#glass-shadow)"/>
-  <rect x="12" y="12" width="1256" height="616" rx="34" fill="url(#glass-frost)" stroke="url(#glass-rim)" stroke-width="2"/>
-  <rect x="15" y="15" width="1250" height="610" rx="31" fill="none" stroke="#fff" stroke-opacity=".48"/>
-  <path d="M48 14H1232" stroke="#fff" stroke-opacity=".85" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="200" viewBox="0 0 1280 200">
+<title>turbotokens: 18 agents. 13 ms cached daily. rust.</title>
+<rect width="1280" height="200" fill="#0a0a0a"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, monospace" text-anchor="start">
+<text x="56" y="88" fill="#f4f4f4" font-size="40" font-weight="600">turbotokens</text>
+<text x="56" y="128" fill="#8a8a8a" font-size="18">18 agents. 13 ms cached daily. rust.</text>
 </g>
 </svg>
-<rect x="38" y="309" width="390" height="91" rx="22" fill="#fff" fill-opacity=".42" stroke="#fff" stroke-opacity=".9"/><rect x="453" y="309" width="393" height="91" rx="22" fill="#fff" fill-opacity=".42" stroke="#fff" stroke-opacity=".9"/><rect x="880" y="309" width="362" height="91" rx="22" fill="#fff" fill-opacity=".42" stroke="#fff" stroke-opacity=".9"/>
-<g font-family="Arial, Helvetica, sans-serif">
-<text x="56" y="64" fill="#0865ce" font-size="17" font-weight="700" letter-spacing="3">AI CODING AGENT ANALYTICS</text>
-<text x="50" y="184" fill="#172b4d" font-size="116" font-weight="800" letter-spacing="-7">turbotokens</text>
-<text x="56" y="246" fill="#334d6d" font-size="34">Know what your coding agents spend.</text>
-<g stroke="#0865ce" stroke-width="9" stroke-linecap="round" fill="none" stroke-linejoin="round">
-<path d="M1032 106l42 42-42 42"/><path d="M1080 106l42 42-42 42"/><path d="M1128 106l42 42-42 42"/>
-</g>
-<path d="M56 292H1224" stroke="#bfd0e4"/>
-<g font-family="Menlo, Consolas, monospace">
-<text x="56" y="345" fill="#0865ce" font-size="33" font-weight="700">18 agents</text>
-<text x="56" y="377" fill="#516681" font-size="17">One place to check usage</text>
-<text x="475" y="345" fill="#0865ce" font-size="33" font-weight="700">~13 ms</text>
-<text x="475" y="377" fill="#516681" font-size="17">Repeat Claude daily report*</text>
-<text x="902" y="345" fill="#0865ce" font-size="33" font-weight="700">Native Rust</text>
-<text x="902" y="377" fill="#516681" font-size="17">macOS / Linux / Windows</text>
-<text x="56" y="440" fill="#516681" font-size="14">* M1 Max · v1.1.0 · 3.63 GB / 6 synthetic files · warm cache. Full benchmarks below.</text>
-</g></g></svg>

@@ -7,7 +7,7 @@ Usage: render_svg.py in.cast out.svg [cols rows font_size trim]
 """
 import json, sys
 import pyte
-from glass import backdrop
+
 
 CAST, OUT = sys.argv[1], sys.argv[2]
 COLS = int(sys.argv[3]) if len(sys.argv) > 3 else 100
@@ -15,18 +15,18 @@ ROWS = int(sys.argv[4]) if len(sys.argv) > 4 else 32
 FONT = int(sys.argv[5]) if len(sys.argv) > 5 else 15
 TRIM = len(sys.argv) > 6 and sys.argv[6] == "trim"
 
-BG = "#edf3fa"
-FG = "#172b4d"
+BG = "#0a0a0a"
+FG = "#e6e6e6"
 BASE16 = {
-    "black": "#172b4d", "red": "#b83250", "green": "#087c51",
-    "yellow": "#99611b", "brown": "#99611b", "blue": "#0865ce", "magenta": "#7254bb",
-    "cyan": "#177897", "white": "#334d6d",
-    "brightblack": "#516681", "brightred": "#b83250",
-    "brightgreen": "#087c51", "brightyellow": "#99611b",
-    "brightblue": "#0865ce", "brightmagenta": "#7254bb",
-    "brightcyan": "#177897", "brightwhite": "#172b4d",
+    "black": "#e6e6e6", "red": "#f85149", "green": "#3fb950",
+    "yellow": "#d29922", "brown": "#d29922", "blue": "#79c0ff", "magenta": "#d2a8ff",
+    "cyan": "#56d4dd", "white": "#c9c9c9",
+    "brightblack": "#8b8b8b", "brightred": "#f85149",
+    "brightgreen": "#3fb950", "brightyellow": "#d29922",
+    "brightblue": "#79c0ff", "brightmagenta": "#d2a8ff",
+    "brightcyan": "#56d4dd", "brightwhite": "#f2f2f2",
 }
-FONT_STACK = "Menlo, 'SF Mono', 'Cascadia Code', Consolas, monospace"
+FONT_STACK = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
 def xterm256(n):
     if n < 16:
@@ -50,9 +50,6 @@ def resolve(c, default):
         try:
             int(c, 16)
             channels = [int(c[i:i+2], 16) for i in (0, 2, 4)]
-            luminance = sum(v * w for v, w in zip(channels, (.2126, .7152, .0722)))
-            if luminance > 145:
-                channels = [round(v * 120 / luminance) for v in channels]
             return "#%02x%02x%02x" % tuple(channels)
         except ValueError:
             pass
@@ -81,7 +78,7 @@ if TRIM:
 # geometry: Menlo advance is 0.6em; rows get 1.33em pitch
 CW = FONT * 0.6
 LH = round(FONT * 1.34)
-PADX, PADY = 28, 62
+PADX, PADY = 24, 48
 W = round(COLS * CW) + PADX * 2
 H = nrows * LH + PADY + 28
 LINE_W = max(1.2, FONT * 0.09)
@@ -93,8 +90,8 @@ parts = []
 parts.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
              f'viewBox="0 0 {W} {H}" font-family="{FONT_STACK}" font-size="{FONT}">')
 parts.append('<title>turbotokens live dashboard, synthetic usage</title>')
-parts.append(backdrop())
-parts.append('<text x="28" y="34" fill="#516681" font-size="14">$ turbotokens live --offline</text>')
+parts.append(f'<rect width="{W}" height="{H}" fill="{BG}"/>')
+parts.append('<text x="24" y="30" fill="#777777" font-size="13">$ turbotokens live --offline</text>')
 
 ARCS = {  # quarter ellipse inscribed in the cell: (start_angle, end_angle, sweep)
     "╭": (0, 90), "╮": (90, 180), "╯": (180, 270), "╰": (270, 360),

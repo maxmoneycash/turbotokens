@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the recorded terminal on glass, preserving the recording's timeline.
+"""Render the recorded terminal, preserving the recording's timeline.
 
 Requires pyte, Pillow, and rsvg-convert. Samples at 2 fps; no playback speedup.
 """
@@ -16,7 +16,7 @@ out = Path(sys.argv[2]).resolve()
 events = [json.loads(line) for line in cast.read_text().splitlines()[1:]]
 end = max(event[0] for event in events)
 frames, durations = [], []
-with tempfile.TemporaryDirectory(prefix='tt-glass-live-') as work:
+with tempfile.TemporaryDirectory(prefix='tt-live-') as work:
     work = Path(work)
     # Fixed row count avoids resizing as sessions appear during the recording.
     for index in range(int(end * 2) + 1):

@@ -25,8 +25,8 @@ const LEVEL_COLORS: [Color; 5] = [
     Color::Red,
 ];
 
-/// Five green intensity levels with contrast on the light glass SVG surface.
-const LEVEL_FILLS: [&str; 5] = ["#dfebed", "#b2dbc9", "#70b998", "#33996e", "#087c51"];
+/// Five green intensity levels on a white page, matching a contribution graph.
+const LEVEL_FILLS: [&str; 5] = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
 
 /// One day in the heatmap window.
 #[derive(Debug, Clone, Copy)]
@@ -299,12 +299,12 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
         format!("{} tokens", format_number(total_tokens))
     };
     svg.push_str(&format!(
-        "<title>Daily usage · {} to {}</title>\n<text x=\"32\" y=\"38\" font-size=\"20\" fill=\"#172b4d\" font-weight=\"700\">Daily usage</text>\n<text x=\"32\" y=\"65\" font-size=\"12\" fill=\"#0865ce\">{total} · {} → {}</text>\n",
+        "<title>Daily usage · {} to {}</title>\n<text x=\"32\" y=\"36\" font-size=\"16\" fill=\"#111111\" font-weight=\"600\">Daily usage</text>\n<text x=\"32\" y=\"56\" font-size=\"12\" fill=\"#666666\">{total} · {} → {}</text>\n",
         start.format(), end.format(), start.format(), end.format()
     ));
 
     // Month labels above the column where each month starts.
-    svg.push_str("<g fill=\"#516681\" font-size=\"10\">\n");
+    svg.push_str("<g fill=\"#666666\" font-size=\"10\">\n");
     for (column, label) in month_labels(start, grid_start, columns)
         .into_iter()
         .flatten()
@@ -339,14 +339,14 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
             )
         };
         svg.push_str(&format!(
-            "<rect x=\"{x}\" y=\"{y}\" width=\"{SVG_CELL}\" height=\"{SVG_CELL}\" rx=\"3\" fill=\"{fill}\"><title>{title}</title></rect>\n"
+            "<rect x=\"{x}\" y=\"{y}\" width=\"{SVG_CELL}\" height=\"{SVG_CELL}\" rx=\"2\" fill=\"{fill}\"><title>{title}</title></rect>\n"
         ));
     }
 
     // Legend: Less [cells] More, bottom right.
     let legend_width = 30 + 5 * SVG_PITCH + 34;
     let legend_x = width - legend_width - 14;
-    svg.push_str("<g font-size=\"10\" fill=\"#516681\">\n");
+    svg.push_str("<g font-size=\"10\" fill=\"#666666\">\n");
     svg.push_str(&format!(
         "<text x=\"32\" y=\"{}\">turbotokens</text>\n",
         legend_y + 10
@@ -357,7 +357,7 @@ fn render_svg(cells: &[DayCell], by_cost: bool) -> String {
     ));
     for (cell_level, fill) in LEVEL_FILLS.iter().enumerate() {
         svg.push_str(&format!(
-            "<rect x=\"{}\" y=\"{legend_y}\" width=\"{SVG_CELL}\" height=\"{SVG_CELL}\" rx=\"3\" fill=\"{fill}\"/>\n",
+            "<rect x=\"{}\" y=\"{legend_y}\" width=\"{SVG_CELL}\" height=\"{SVG_CELL}\" rx=\"2\" fill=\"{fill}\"/>\n",
             legend_x + 30 + cell_level as i64 * SVG_PITCH
         ));
     }

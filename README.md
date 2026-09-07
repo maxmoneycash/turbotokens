@@ -1,15 +1,15 @@
 <p align="center">
   <picture>
-    <source media="(max-width: 600px)" srcset="assets/hero-mobile.svg?v=7b04a4c66700">
-    <img src="assets/hero.svg?v=0857d4293740" alt="turbotokens: Know what your coding agents spend. Native Rust CLI for 18 AI coding agents." width="100%">
+    <source media="(max-width: 600px)" srcset="assets/hero-mobile.svg?v=7c1b74544e24">
+    <img src="assets/hero.svg?v=bbd500d105d5" alt="turbotokens: Know what your coding agents spend. Native Rust CLI for 18 AI coding agents." width="100%">
   </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/maxmoneycash/turbotokens/releases/latest"><img src="https://img.shields.io/github/v/release/maxmoneycash/turbotokens?style=flat&color=0865ce&labelColor=516681" alt="Latest release"></a>
-  <a href="https://github.com/maxmoneycash/turbotokens/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxmoneycash/turbotokens/ci.yml?branch=main&style=flat&labelColor=516681" alt="CI status"></a>
-  <a href="https://www.npmjs.com/package/turbotokens"><img src="https://img.shields.io/npm/v/turbotokens?style=flat&color=0865ce&labelColor=516681&label=npm" alt="npm version"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-0865ce?style=flat&labelColor=516681" alt="MIT license"></a>
+  <a href="https://github.com/maxmoneycash/turbotokens/releases/latest"><img src="https://img.shields.io/github/v/release/maxmoneycash/turbotokens?style=flat&color=222&labelColor=555" alt="Latest release"></a>
+  <a href="https://github.com/maxmoneycash/turbotokens/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxmoneycash/turbotokens/ci.yml?branch=main&style=flat&color=222&labelColor=555" alt="CI status"></a>
+  <a href="https://www.npmjs.com/package/turbotokens"><img src="https://img.shields.io/npm/v/turbotokens?style=flat&color=222&labelColor=555&label=npm" alt="npm version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-222?style=flat&labelColor=555" alt="MIT license"></a>
 </p>
 
 **Fast usage reports, a live dashboard, and shareable stats for your AI coding agents.** turbotokens reads the logs already on your machine. Check your spend across Claude Code, Codex, and 16 more agents with one command. No account or API key needed for local reports.
@@ -58,7 +58,7 @@ turbotokens doctor
 
 </details>
 
-<img src="assets/live-demo.gif?v=2a1198a11061" alt="The real turbotokens live dashboard updating as synthetic usage events arrive" width="100%">
+<img src="assets/live-demo.gif?v=28ea241e0f51" alt="The real turbotokens live dashboard updating as synthetic usage events arrive" width="100%">
 
 ## Why turbotokens?
 
@@ -76,7 +76,7 @@ We benchmark **released native ARM64 binaries**, including the current Rust vers
 
 ### Daily reports: 13 ms versus 3.65 seconds
 
-<img src="assets/comparison-daily.png?v=18deb27cb3df" alt="Daily JSON report benchmark: turbotokens stays between 11 and 17 milliseconds across 72 MB to 3.63 GB of synthetic logs; ccusage takes 78 milliseconds to 4.49 seconds. Full measurements are linked below." width="100%">
+<img src="assets/comparison-daily.png?v=d161a6f2d5d1" alt="Daily JSON report benchmark: turbotokens stays between 11 and 17 milliseconds across 72 MB to 3.63 GB of synthetic logs; ccusage takes 78 milliseconds to 4.49 seconds. Full measurements are linked below." width="100%">
 
 At **3.63 GB**, turbotokens completed a cached daily report in **12.9 ms**, compared with **3,649 ms** for ccusage: about **283× faster in this test**. Both commands use `claude daily --offline --json`. No daemon is running.
 
@@ -84,7 +84,7 @@ A separate check across **1,000 smaller files** (72 MB total) took **12.7 ms** f
 
 ### Monthly reports: compared with both tools
 
-<img src="assets/comparison-monthly.png?v=cff800f516fa" alt="Monthly JSON report benchmark on 3.63 GB of synthetic Claude logs: turbotokens 1.54 seconds, tokscale 3.99 seconds, and ccusage 4.83 seconds. Lower is better." width="100%">
+<img src="assets/comparison-monthly.png?v=fe6de784eae5" alt="Monthly JSON report benchmark on 3.63 GB of synthetic Claude logs: turbotokens 1.54 seconds, tokscale 3.99 seconds, and ccusage 4.83 seconds. Lower is better." width="100%">
 
 | Transcript size | turbotokens 1.1.0 | ccusage 20.0.20 | tokscale 4.15.1 |
 | :--- | ---: | ---: | ---: |
@@ -105,7 +105,7 @@ Different file counts, agent formats, machines, and background load can change t
 
 In a separate cache-on/cache-off test, turbotokens scanned the 3.63 GB history in **1.10 s with its parse cache disabled**, then returned the cached daily report in **9 ms**. Both used a warmed OS file cache and offline pricing. Every cached and uncached JSON result was byte-identical.
 
-<img src="assets/scaling-chart.png?v=7cc94cb935c0" alt="turbotokens daily report timing with its parse cache enabled and disabled across five transcript sizes" width="100%">
+<img src="assets/scaling-chart.png?v=14d98ff6804c" alt="turbotokens daily report timing with its parse cache enabled and disabled across five transcript sizes" width="100%">
 
 See the [cache benchmark](rust/bench/README.md#cache-enabled-versus-disabled) for the separate run and its raw samples.
 
@@ -115,7 +115,7 @@ See the [cache benchmark](rust/bench/README.md#cache-enabled-versus-disabled) fo
 
 Run `turbotokens` to combine the sources it finds, or name an agent to focus on it.
 
-<img src="assets/daily-report.png?v=b666f99ce18a" alt="A real turbotokens daily report generated from synthetic Claude Code and Codex sessions, with separate input, output, cache, total, and cost columns" width="100%">
+<img src="assets/daily-report.png?v=e50811eee970" alt="A real turbotokens daily report generated from synthetic Claude Code and Codex sessions, with separate input, output, cache, total, and cost columns" width="100%">
 
 ```sh
 turbotokens claude daily --breakdown    # Claude usage, including model costs
@@ -143,7 +143,7 @@ turbotokens live --agent codex
 turbotokens stream                 # JSON event feed
 ```
 
-<img src="assets/live-dashboard.png?v=b728a84578e1" alt="The live dashboard showing estimated cost, tokens, burn rate, active sessions, and recent usage events; synthetic data" width="100%">
+<img src="assets/live-dashboard.png?v=ede55d90c946" alt="The live dashboard showing estimated cost, tokens, burn rate, active sessions, and recent usage events; synthetic data" width="100%">
 
 Watch today's tokens and estimated spend, the current burn rate, active sessions, and recent events update in the terminal. Live mode polls every **100 ms** by default; `--interval 250` changes that to 250 ms. The time until an event appears also depends on when the agent writes its logs.
 
@@ -184,7 +184,7 @@ turbotokens daily --json > usage.json
 turbotokens heatmap --svg heatmap.svg
 ```
 
-<img src="assets/heatmap.svg?v=9250275366ab" alt="CLI-generated daily usage heatmap with date range, token total, and green contribution cells; synthetic sample data" width="100%">
+<img src="assets/heatmap.svg?v=92961b162223" alt="CLI-generated daily usage heatmap with date range, token total, and green contribution cells; synthetic sample data" width="100%">
 
 See your usage streaks and busy weeks. Add `--cost` to color by estimated spend, set a date range with `--since` and `--until`, or leave off `--svg` to see the heatmap in your terminal.
 
@@ -194,7 +194,7 @@ See your usage streaks and busy weeks. Add `--cost` to color by estimated spend,
 turbotokens wrapped --year 2026 --svg wrapped.svg
 ```
 
-<img src="assets/wrapped.svg?v=fd15ea160e64" alt="CLI-generated yearly summary showing token totals, estimated cost, active days, longest streak, top model and project, and Claude and Codex shares; synthetic sample data" width="100%">
+<img src="assets/wrapped.svg?v=8282dcf9c767" alt="CLI-generated yearly summary showing token totals, estimated cost, active days, longest streak, top model and project, and Claude and Codex shares; synthetic sample data" width="100%">
 
 Total tokens, active days, estimated cost, busiest day, longest streak, favorite weekday, top model, top project, and your agent split. SVGs stay crisp when resized and work in a README or personal site. Both commands also export JSON.
 

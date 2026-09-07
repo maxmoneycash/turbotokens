@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, FixedLocator
 
 ROOT = Path(__file__).resolve().parents[2]
-BG, FG, MUTED, GRID = '#edf3fa', '#172b4d', '#516681', '#c4d4e7'
-COLORS = {'turbotokens': '#0865ce', 'ccusage': '#7959aa', 'tokscale': '#137f79'}
+BG, FG, MUTED, GRID = '#ffffff', '#111111', '#666666', '#eeeeee'
+COLORS = {'turbotokens': '#111111', 'ccusage': '#888888', 'tokscale': '#555555'}
 
 
 def seconds(value):
@@ -35,10 +35,9 @@ def render(source, output):
                          'xtick.color': MUTED, 'ytick.color': MUTED})
     fig, ax = plt.subplots(figsize=(12, 6.6), facecolor=BG)
     ax.set_facecolor('none')
-    fig.subplots_adjust(left=.105, right=.80, top=.71, bottom=.21)
-    fig.text(.055, .925, 'REPEATED REPORTS / NATIVE ARM64', color=COLORS['turbotokens'], size=12, weight='bold')
-    fig.text(.055, .845, 'Daily reports, without the wait.' if daily else 'Monthly reports. Three native CLIs.', size=26, weight='bold')
-    fig.text(.055, .787, 'Same Claude logs. Warm caches. Median of five runs. Lower is better.', size=13, color=MUTED)
+    fig.subplots_adjust(left=.105, right=.80, top=.78, bottom=.21)
+    fig.text(.055, .90, 'Daily report time' if daily else 'Monthly report time', size=18, weight='bold', color=FG)
+    fig.text(.055, .84, 'Same Claude logs. Median of five runs. Lower is better.', size=12, color=MUTED)
     for name in names:
         values = [row['median_seconds'][name] for row in rows]
         ax.plot(xs, values, color=COLORS[name], linewidth=3, marker='o', markersize=7)
@@ -74,10 +73,9 @@ def render_monthly(data, output):
     values = [row['median_seconds'][name] for name in names]
     fig, ax = plt.subplots(figsize=(12, 5.8), facecolor=BG)
     ax.set_facecolor('none')
-    fig.subplots_adjust(left=.19, right=.91, top=.68, bottom=.22)
-    fig.text(.055, .91, 'MONTHLY REPORTS / NATIVE ARM64', color=COLORS['turbotokens'], size=12, weight='bold')
-    fig.text(.055, .82, '3.63 GB of logs. Three native CLIs.', color=FG, size=26, weight='bold')
-    fig.text(.055, .755, 'Same Claude logs. Warm caches. Median of five runs. Lower is better.', color=MUTED, size=13)
+    fig.subplots_adjust(left=.19, right=.91, top=.76, bottom=.22)
+    fig.text(.055, .90, 'Monthly report on 3.63 GB of logs', color=FG, size=18, weight='bold')
+    fig.text(.055, .84, 'Same Claude logs. Median of five runs. Lower is better.', color=MUTED, size=12)
     ax.barh(range(3), values, height=.48, color=[COLORS[name] for name in names])
     ax.set_yticks(range(3))
     ax.set_yticklabels(names, color=FG, size=17)

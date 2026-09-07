@@ -1,37 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="450" viewBox="0 0 640 450">
-<title>turbotokens: Know what your coding agents spend.</title>
-<svg width="100%" height="100%" viewBox="0 0 1280 640" preserveAspectRatio="none" aria-hidden="true">
-<defs>
-  <linearGradient id="glass-sky" x2="1" y2="1"><stop stop-color="#d9e9ff"/><stop offset=".46" stop-color="#f1f6fc"/><stop offset="1" stop-color="#b9d8f6"/></linearGradient>
-  <linearGradient id="glass-wave" x2="1" y2="1"><stop stop-color="#a5c7fb"/><stop offset=".52" stop-color="#6aa8ec"/><stop offset="1" stop-color="#c5eaf0"/></linearGradient>
-  <linearGradient id="glass-frost" x2=".8" y2="1"><stop stop-color="#fff" stop-opacity=".84"/><stop offset=".52" stop-color="#fff" stop-opacity=".59"/><stop offset="1" stop-color="#edf6ff" stop-opacity=".73"/></linearGradient>
-  <linearGradient id="glass-rim" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".35" stop-color="#fff" stop-opacity=".35"/><stop offset=".68" stop-color="#8daed4" stop-opacity=".45"/><stop offset="1" stop-color="#fff"/></linearGradient>
-  <filter id="glass-soft" x="-.5" y="-.5" width="2" height="2" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="24"/></filter>
-  <filter id="glass-shadow" x="-.1" y="-.2" width="1.2" height="1.4" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="10"/></filter>
-  <clipPath id="glass-clip"><rect width="1280" height="640" rx="42"/></clipPath>
-</defs>
-<g clip-path="url(#glass-clip)">
-  <rect width="1280" height="640" fill="url(#glass-sky)"/>
-  <path d="M860-80C700 140 1020 300 730 710H1380V-80Z" fill="url(#glass-wave)"/>
-  <path d="M980-70C790 175 1190 325 840 730" fill="none" stroke="#fff" stroke-opacity=".52" stroke-width="3"/>
-  <g filter="url(#glass-soft)"><ellipse cx="160" cy="580" rx="350" ry="125" fill="#b5cfef"/><ellipse cx="1150" cy="160" rx="230" ry="190" fill="#b8cbf4"/><path d="M1050-50C800 200 1150 480 900 710" stroke="#75b8de" stroke-width="80" fill="none"/></g>
-  <rect x="15" y="22" width="1250" height="606" rx="36" fill="#396697" opacity=".18" filter="url(#glass-shadow)"/>
-  <rect x="12" y="12" width="1256" height="616" rx="34" fill="url(#glass-frost)" stroke="url(#glass-rim)" stroke-width="2"/>
-  <rect x="15" y="15" width="1250" height="610" rx="31" fill="none" stroke="#fff" stroke-opacity=".48"/>
-  <path d="M48 14H1232" stroke="#fff" stroke-opacity=".85" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180">
+<title>turbotokens: 18 agents. 13 ms cached daily. rust.</title>
+<rect width="640" height="180" fill="#0a0a0a"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, monospace" text-anchor="start">
+<text x="28" y="80" fill="#f4f4f4" font-size="32" font-weight="600">turbotokens</text>
+<text x="28" y="116" fill="#8a8a8a" font-size="16">18 agents. 13 ms cached daily. rust.</text>
 </g>
 </svg>
-<rect x="20" y="301" width="600" height="80" rx="22" fill="#fff" fill-opacity=".42" stroke="#fff" stroke-opacity=".9"/>
-<g font-family="Arial, Helvetica, sans-serif">
-<text x="32" y="49" fill="#0865ce" font-size="18" font-weight="700" letter-spacing="2">AI CODING AGENT ANALYTICS</text>
-<text x="27" y="151" fill="#172b4d" font-size="89" font-weight="800" letter-spacing="-5">turbotokens</text>
-<text x="32" y="211" fill="#334d6d" font-size="32">Know what your</text>
-<text x="32" y="251" fill="#334d6d" font-size="32">coding agents spend.</text>
-<path d="M32 284H608" stroke="#bfd0e4"/>
-<g font-family="Menlo, Consolas, monospace" fill="#0865ce" font-size="28" font-weight="700">
-<text x="32" y="334">18 agents</text><text x="250" y="334">~13 ms*</text><text x="440" y="334">Rust</text>
-</g>
-<g fill="#516681" font-size="18">
-<text x="32" y="366">One CLI</text><text x="250" y="366">Repeat report</text><text x="440" y="366">Native binary</text>
-<text x="32" y="411">* Cached Claude daily report. See benchmarks below.</text>
-</g></g></svg>
