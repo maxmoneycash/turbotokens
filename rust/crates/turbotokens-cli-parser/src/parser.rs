@@ -265,7 +265,7 @@ fn parse_command(
             }
             Ok(Command::Statusline(args))
         }
-        "live" => {
+        "live" | "stream" => {
             let mut args = LiveArgs {
                 shared,
                 interval_ms: 100,
@@ -275,6 +275,9 @@ fn parse_command(
                 serve: None,
                 agent: LiveAgent::Claude,
             };
+            if command == "stream" {
+                args.shared.json = true;
+            }
             while parser.peek().is_some() {
                 if parse_shared_arg_for_command(parser, &mut args.shared)? {
                     continue;
@@ -983,6 +986,7 @@ fn is_command(arg: &str) -> bool {
             | "blocks"
             | "statusline"
             | "live"
+            | "stream"
             | "daemon"
             | "doctor"
             | "limits"
@@ -1044,7 +1048,8 @@ fn report_flag_alias_error(args: &[String]) -> Option<String> {
 fn agent_filter_option_error(args: &[String]) -> Option<String> {
     // `live --agent claude|codex` selects the agent the tail watches, so the
     // flag is a live option rather than an unsupported report filter.
-    if matches!(command_tokens(args).as_slice(), [command, ..] if command == "live") {
+    if matches!(command_tokens(args).as_slice(), [command, ..] if command == "live" || command == "stream")
+    {
         return None;
     }
     let allows_short_active = blocks_command_tokens(args);

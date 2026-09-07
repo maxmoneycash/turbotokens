@@ -294,6 +294,35 @@ fn parses_live_command_with_default_interval() {
 }
 
 #[test]
+fn stream_is_live_with_json_forced() {
+    let cli = parse(&["turbotokens", "stream"]);
+    let Some(Command::Live(args)) = cli.command else {
+        panic!("expected live command");
+    };
+    assert!(args.shared.json);
+    assert_eq!(args.interval_ms, 100);
+    assert_eq!(args.agent, LiveAgent::Claude);
+
+    let cli = parse(&[
+        "turbotokens",
+        "stream",
+        "--agent",
+        "codex",
+        "--interval",
+        "250",
+        "--serve",
+        "127.0.0.1:9090",
+    ]);
+    let Some(Command::Live(args)) = cli.command else {
+        panic!("expected live command");
+    };
+    assert!(args.shared.json);
+    assert_eq!(args.agent, LiveAgent::Codex);
+    assert_eq!(args.interval_ms, 250);
+    assert_eq!(args.serve.as_deref(), Some("127.0.0.1:9090"));
+}
+
+#[test]
 fn parses_live_agent_alert_webhook_and_serve_options() {
     let cli = parse(&[
         "turbotokens",
@@ -838,6 +867,10 @@ fn snapshots_root_and_contextual_help_text() {
     insta::assert_snapshot!(
         "live_help",
         help_text_for_args(&["turbotokens".to_string(), "live".to_string()])
+    );
+    insta::assert_snapshot!(
+        "stream_help",
+        help_text_for_args(&["turbotokens".to_string(), "stream".to_string()])
     );
 }
 

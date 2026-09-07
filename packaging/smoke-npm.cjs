@@ -19,6 +19,7 @@ try {
   const executable = path.join(temporary, 'node_modules', '.bin', process.platform === 'win32' ? 'turbotokens.cmd' : 'turbotokens');
   const version = require('../npm/package.json').version;
   assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
+  assert.match(run(executable, ['stream', '--help']), /newline-delimited JSON/);
   assert.match(run(executable, ['heatmap', '--help']), /--svg/);
   assert.match(run(executable, ['wrapped', '--help']), /--year/);
   assert.match(run(executable, ['limits', '--help']), /plan-limit/);

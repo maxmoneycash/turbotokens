@@ -1,11 +1,11 @@
 ---
 source: crates/turbotokens-cli-parser/src/tests.rs
-expression: "help_text_for_args(&[\"turbotokens\".to_string(), \"live\".to_string()])"
+expression: "help_text_for_args(&[\"turbotokens\".to_string(), \"stream\".to_string()])"
 ---
-Follow Claude Code or Codex usage in a live dashboard. Use --json, or `turbotokens stream`, for newline-delimited JSON events.
+Stream Claude Code or Codex token usage as newline-delimited JSON. Each line is one usage event. This is `turbotokens live --json`.
 
 USAGE:
-  turbotokens live <OPTIONS>
+  turbotokens stream <OPTIONS>
 
 OPTIONS:
   -s, --since <since>                  Filter from date (YYYYMMDD format)

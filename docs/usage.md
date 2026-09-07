@@ -28,35 +28,97 @@ The token total can include input, output, cache creation, and cache reads, depe
 
 ## Live mode
 
+Watch today's tokens and estimated spend in the terminal:
+
 ```sh
 turbotokens live
 turbotokens live --agent codex
 turbotokens live --interval 250
 ```
 
-Live mode defaults to Claude Code and a 100 ms polling interval. Actual display latency depends on when the agent writes its log, the amount of data, and the machine.
+Live mode currently follows **Claude Code** (default) or **Codex**. It polls every 100 ms by default. The time until an event appears also depends on when the agent writes its log.
 
-Stream newline-delimited JSON:
+Press Ctrl-C to stop.
+
+### Stream token events
+
+For scripts, pipes, and other tools, stream one JSON object per usage event:
 
 ```sh
-turbotokens live --json
+turbotokens stream
+turbotokens stream --agent codex
+turbotokens live --json          # same feed
 ```
 
-Send a budget alert to an endpoint that accepts JSON:
+Stdout is newline-delimited JSON. Each usage line looks like:
+
+```json
+{
+  "type": "usage",
+  "timestamp": "2026-07-27T18:00:00.000Z",
+  "project": "webapp",
+  "sessionId": "sess-1",
+  "model": "claude-sonnet-4",
+  "inputTokens": 90,
+  "outputTokens": 50,
+  "cacheCreationTokens": 10,
+  "cacheReadTokens": 5,
+  "totalTokens": 155,
+  "cost": 0.0123
+}
+```
+
+`totalTokens` is input + output + cache creation + cache read. `cost` is an estimate in USD. A broken pipe (`| head`) is a clean stop.
+
+```sh
+# Follow new events as they arrive
+turbotokens stream | jq -c '{time: .timestamp, model, tokens: .totalTokens, cost}'
+
+# Running token total
+turbotokens stream | jq -s 'map(.totalTokens) | add'
+```
+
+On a TTY, `turbotokens live` is the dashboard. Piped or `--json` / `stream` is the machine feed.
+
+### Budget alerts
 
 ```sh
 turbotokens live --alert-cost 25 --webhook https://example.com/usage-alerts
+turbotokens stream --alert-tokens 1000000 --webhook https://example.com/usage-alerts
 ```
 
-The webhook receives turbotokens' alert payload. Services with a different payload format need an adapter.
+The webhook receives a JSON body. Alerts also print on stderr when streaming so stdout stays a clean event feed:
 
-Expose Prometheus metrics locally:
+```json
+{
+  "type": "alert",
+  "metric": "cost",
+  "threshold": 25,
+  "value": 25.4,
+  "date": "2026-09-07"
+}
+```
+
+`metric` is `cost` or `tokens`. Services such as Slack or Discord need a small adapter. Alerts notify you; they do not stop the coding agent.
+
+### Prometheus metrics
 
 ```sh
 turbotokens live --serve 127.0.0.1:9090
+turbotokens stream --serve 127.0.0.1:9090
+curl -s http://127.0.0.1:9090/metrics
 ```
 
-Press Ctrl-C to stop live mode.
+Gauges for today's usage:
+
+| Metric | Meaning |
+| --- | --- |
+| `turbotokens_tokens_total{kind=...}` | Today's tokens by `input`, `output`, `cache_creation`, `cache_read` |
+| `turbotokens_cost_usd_total` | Today's estimated cost in USD |
+| `turbotokens_tokens_per_minute` | Burn rate over the trailing 5 minutes |
+| `turbotokens_model_tokens_total{model=...}` | Today's tokens by model |
+| `turbotokens_sessions_active` | Sessions with activity in the last 5 minutes |
+| `turbotokens_files_watched` | JSONL log files currently tracked |
 
 ## Heatmap and yearly summary
 

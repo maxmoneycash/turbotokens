@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add `turbotokens stream` for a newline-delimited JSON feed of live token events (`live --json` is the same stream). Each usage event includes `totalTokens`.
+
 ## 1.1.2 · 2026-09-06
 
 - Restyle heatmap and wrapped SVG exports with a shared Liquid Glass inspired material, brighter edges, and dark text. Report data and terminal output are unchanged.

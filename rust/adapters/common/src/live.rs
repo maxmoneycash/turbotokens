@@ -53,6 +53,7 @@ impl LiveEvent {
             "outputTokens": self.usage.output_tokens,
             "cacheCreationTokens": self.usage.cache_creation_token_count(),
             "cacheReadTokens": self.usage.cache_read_input_tokens,
+            "totalTokens": self.total_tokens(),
             "cost": json_float(self.cost),
         })
     }
@@ -336,7 +337,7 @@ pub fn detect_output(json: bool) -> LiveOutput {
     }
 }
 
-/// A broken pipe is the natural end of a piped stream (`turbotokens live --json |
+/// A broken pipe is the natural end of a piped stream (`turbotokens stream |
 /// head`); every other I/O error is real.
 pub fn map_stream_result(result: io::Result<()>) -> turbotokens_core::Result<bool> {
     match result {
@@ -799,6 +800,43 @@ mod tests {
         assert_eq!(fired[1].metric, AlertMetric::Tokens);
         // Edge-triggered: staying above the threshold fires nothing more.
         assert!(alerts.check("2026-07-28", 2.0, 200).is_empty());
+    }
+
+    #[test]
+    fn usage_json_includes_token_counts_and_total() {
+        let event = LiveEvent {
+            timestamp_ms: 1_785_175_200_000,
+            date: "2026-07-27".to_string(),
+            project: Arc::from("webapp"),
+            session_id: Arc::from("sess-1"),
+            model: Some("claude-sonnet-4".to_string()),
+            usage: TokenUsageRaw {
+                input_tokens: 90,
+                output_tokens: 50,
+                cache_creation_input_tokens: 10,
+                cache_read_input_tokens: 5,
+                speed: None,
+                cache_creation: None,
+            },
+            cost: 0.0123,
+        };
+
+        assert_eq!(
+            event.to_json(),
+            json!({
+                "type": "usage",
+                "timestamp": "2026-07-27T18:00:00.000Z",
+                "project": "webapp",
+                "sessionId": "sess-1",
+                "model": "claude-sonnet-4",
+                "inputTokens": 90,
+                "outputTokens": 50,
+                "cacheCreationTokens": 10,
+                "cacheReadTokens": 5,
+                "totalTokens": 155,
+                "cost": 0.0123,
+            })
+        );
     }
 
     #[test]

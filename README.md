@@ -29,6 +29,7 @@ brew install maxmoneycash/tap/turbotokens
 
 turbotokens         # Daily usage across your detected agents
 turbotokens live    # Follow Claude Code as it works
+turbotokens stream  # Same data as newline-delimited JSON
 ```
 
 Already have Node.js? Run a report with **`npx turbotokens`**, or install the command with `npm install -g turbotokens`.
@@ -64,7 +65,7 @@ turbotokens doctor
 - **Check the whole picture.** Daily, weekly, monthly, and session reports across 18 agents. Drill down by agent, model, project, or date where the source supports it.
 - **Keep reports quick as history grows.** Claude daily reports cache parsed usage. Our 3.63 GB benchmark took **13 ms on a repeat run**, versus **3.65 s for ccusage** with the same logs.
 - **See a session while it is happening.** A live Claude Code or Codex dashboard shows usage, estimated cost, burn rate, active sessions, and new events.
-- **Put the numbers to work.** JSON reports, a JSON event stream, budget webhooks, Prometheus metrics, and a Claude Code status line.
+- **Put the numbers to work.** `turbotokens stream` for JSON events, budget webhooks, Prometheus metrics, JSON reports, and a Claude Code status line.
 - **Keep a record you can share.** Export a contribution heatmap or a yearly summary as an SVG. The CLI generates both.
 
 The timings are medians on a specific synthetic workload, not a promise for every machine or agent. The full comparison is below.
@@ -139,6 +140,7 @@ Agent formats differ. Available model, project, cache, and session details depen
 ```sh
 turbotokens live
 turbotokens live --agent codex
+turbotokens stream                 # JSON event feed
 ```
 
 <img src="assets/live-dashboard.png?v=b728a84578e1" alt="The live dashboard showing estimated cost, tokens, burn rate, active sessions, and recent usage events; synthetic data" width="100%">
@@ -160,11 +162,13 @@ Send an alert when today's estimated cost crosses your threshold. Use `--alert-t
 ### Feed a dashboard or script
 
 ```sh
+# Newline-delimited JSON events (one usage object per line)
+turbotokens stream
+turbotokens stream --agent codex | jq -c '{model, tokens: .totalTokens, cost}'
+
 # Prometheus metrics on your machine
 turbotokens live --serve 127.0.0.1:9090
-
-# Newline-delimited JSON events
-turbotokens live --json
+curl -s http://127.0.0.1:9090/metrics
 
 # Save a report for another tool
 turbotokens daily --json > usage.json

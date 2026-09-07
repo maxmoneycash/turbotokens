@@ -49,6 +49,10 @@
 				"description": "Follow Claude Code or Codex usage in a live dashboard"
 			},
 			{
+				"name": "stream",
+				"description": "Stream Claude Code or Codex token usage as newline-delimited JSON"
+			},
+			{
 				"name": "daemon",
 				"description": "Run a resident index daemon for near-instant reports"
 			},
@@ -189,8 +193,14 @@
 		},
 		{
 			"path": ["live"],
-			"description": "Follow Claude Code or Codex usage in a live dashboard",
+			"description": "Follow Claude Code or Codex usage in a live dashboard. Use --json, or `turbotokens stream`, for newline-delimited JSON events.",
 			"usage": "turbotokens live <OPTIONS>",
+			"options": "claude_live_options"
+		},
+		{
+			"path": ["stream"],
+			"description": "Stream Claude Code or Codex token usage as newline-delimited JSON. Each line is one usage event. This is `turbotokens live --json`.",
+			"usage": "turbotokens stream <OPTIONS>",
 			"options": "claude_live_options"
 		},
 		{

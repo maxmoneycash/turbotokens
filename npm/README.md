@@ -24,6 +24,7 @@ turbotokens claude daily --breakdown        # Claude model costs
 turbotokens codex session                   # Codex usage by session
 turbotokens daily --json                    # Structured output
 turbotokens live --agent codex              # Follow Codex while it works
+turbotokens stream                         # JSON token events, one object per line
 turbotokens heatmap --svg heatmap.svg       # Contribution graph
 turbotokens wrapped --year 2026 --svg wrapped.svg
 turbotokens doctor                         # Data discovery and diagnostics
