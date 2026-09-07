@@ -17,10 +17,10 @@ This creates a temporary dataset using seed 42, runs the actual daily, heatmap, 
 To capture the machine-readable token feed instead of the dashboard:
 
 ```sh
-timeout 5 rust/target/release/turbotokens stream --offline --interval 100
+rust/target/release/turbotokens stream --offline --interval 100
 ```
 
-Each stdout line is one JSON usage event. `live --json` is the same stream. Ctrl-C or a broken pipe stops it.
+Each stdout line is one JSON usage event. `live --json` is the same stream. Stop with Ctrl-C, or pipe through `head` for a few events.
 
 `fixtures/capture.json` records the version, date, and commands. Text, JSON, SVG, and asciicast output are saved in `fixtures/`. The SVG exports in `assets/` are direct CLI output, with no palette swap or edited statistics. The yearly card may show fewer project details for adapters that do not expose them.
 
