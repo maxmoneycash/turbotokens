@@ -7,12 +7,16 @@
 
 <p align="center">
   <a href="https://github.com/maxmoneycash/turbotokens/releases/latest"><img src="https://img.shields.io/github/v/release/maxmoneycash/turbotokens?style=flat&color=222&labelColor=555" alt="Latest release"></a>
-  <a href="https://github.com/maxmoneycash/turbotokens/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxmoneycash/turbotokens/ci.yml?branch=main&style=flat&color=222&labelColor=555" alt="CI status"></a>
+  <a href="https://github.com/maxmoneycash/turbotokens/stargazers"><img src="https://img.shields.io/github/stars/maxmoneycash/turbotokens?style=flat&color=222&labelColor=555" alt="GitHub stars"></a>
   <a href="https://www.npmjs.com/package/turbotokens"><img src="https://img.shields.io/npm/v/turbotokens?style=flat&color=222&labelColor=555&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/turbotokens"><img src="https://img.shields.io/npm/dm/turbotokens?style=flat&color=222&labelColor=555&label=downloads" alt="npm downloads per month"></a>
+  <a href="https://github.com/maxmoneycash/turbotokens/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/maxmoneycash/turbotokens/ci.yml?branch=main&style=flat&color=222&labelColor=555" alt="CI status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-222?style=flat&labelColor=555" alt="MIT license"></a>
 </p>
 
 **Fast usage reports, a live dashboard, and shareable stats for your AI coding agents.** turbotokens reads the logs already on your machine. Check your spend across Claude Code, Codex, and 16 more agents with one command. No account or API key needed for local reports.
+
+If turbotokens saved you from a surprise bill, a ⭐ helps other developers find it.
 
 <p align="center">
   <a href="#get-started">Get started</a> ·
@@ -199,6 +203,8 @@ turbotokens wrapped --year 2026 --svg wrapped.svg
 
 Total tokens, active days, estimated cost, busiest day, longest streak, favorite weekday, top model, top project, and your agent split. SVGs stay crisp when resized and work in a README or personal site. Both commands also export JSON.
 
+**Share yours.** Post your card in the [show-and-tell thread](https://github.com/maxmoneycash/turbotokens/issues/5), or [share it on X](https://twitter.com/intent/tweet?text=My%20year%20in%20AI%20coding%2C%20visualized%20with%20turbotokens%3A%20https%3A%2F%2Fgithub.com%2Fmaxmoneycash%2Fturbotokens). Usage cards may include project names, so check the SVG before posting.
+
 All product images here use **synthetic data**. Heatmap and wrapped previews are direct CLI exports. Your own exports contain your usage statistics and may include project names.
 
 ## Make it part of your workflow
@@ -273,6 +279,24 @@ Choose turbotokens if quick repeated reports and scriptable live monitoring fit 
 
 [Comparison scope and pinned sources →](rust/bench/README.md#comparison-scope)
 
+## Frequently asked questions
+
+### What is a faster alternative to ccusage?
+
+turbotokens began as a fork of ccusage and keeps its report formats compatible while adding a parse cache, so repeat Claude daily reports run in milliseconds instead of seconds. On a 3.63 GB benchmark history, a cached daily report took 13 ms versus 3.65 s for ccusage on the same logs. It also adds a live dashboard, budget alerts, Prometheus metrics, and SVG usage cards. Details: [benchmarks](#see-the-speed).
+
+### How do I track Claude Code costs in real time?
+
+Run `turbotokens live`. It follows Claude Code's local logs as they change and shows the day's usage, estimated cost, burn rate, and active sessions. `turbotokens stream` emits the same events as newline-delimited JSON for scripts, and `turbotokens statusline` puts the numbers in your Claude Code status line. Codex and Grok Build are supported too.
+
+### Can I check my AI coding usage without an account or API key?
+
+Yes. turbotokens reads the usage logs your agents already write to your machine. Local reports, the live dashboard, heatmaps, and wrapped cards all work fully offline — no account, no API key, no upload. Costs are estimated from an embedded pricing snapshot, which you can override with your own pricing file.
+
+### Which agents does turbotokens support?
+
+Eighteen, including Claude Code, Codex, Grok Build, Gemini CLI, GitHub Copilot, and Kimi. One command reports across every agent it detects on your machine; `turbotokens doctor` shows what was found. See the [usage guide](docs/usage.md) for the full list and per-agent flags.
+
 ## Data, costs, and privacy
 
 **Local reports read local files.** You do not need to create a turbotokens account or upload transcripts. The CLI aggregates the usage records your agents have already written; it does not estimate tokens by re-tokenizing your conversations.
@@ -315,6 +339,15 @@ Good contributions include missing log formats, counting fixtures, clearer diagn
 [Contributing guide](CONTRIBUTING.md) · [Adapter architecture](rust/adapters/README.md) · [Benchmarks](rust/bench/README.md) · [Report a bug](https://github.com/maxmoneycash/turbotokens/issues/new?template=bug_report.yml) · [Request a feature](https://github.com/maxmoneycash/turbotokens/issues/new?template=feature_request.yml)
 
 If turbotokens helps you, star the repo, share a usage card, or tell us which agent you want supported next. Real workloads and good bug reports make the tool better.
+
+## Star history
+
+<a href="https://star-history.com/#maxmoneycash/turbotokens&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=maxmoneycash/turbotokens&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=maxmoneycash/turbotokens&type=Date" alt="Chart of turbotokens GitHub stars over time" width="100%">
+  </picture>
+</a>
 
 ## License and credits
 
