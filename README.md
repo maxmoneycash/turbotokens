@@ -64,7 +64,7 @@ turbotokens doctor
 
 - **Check the whole picture.** Daily, weekly, monthly, and session reports across 18 agents. Drill down by agent, model, project, or date where the source supports it.
 - **Keep reports quick as history grows.** Claude daily reports cache parsed usage. Our 3.63 GB benchmark took **13 ms on a repeat run**, versus **3.65 s for ccusage** with the same logs.
-- **See a session while it is happening.** A live Claude Code or Codex dashboard shows usage, estimated cost, burn rate, active sessions, and new events.
+- **See a session while it is happening.** A live Claude Code, Codex, or Grok Build dashboard shows usage, estimated cost, burn rate, active sessions, and new events.
 - **Put the numbers to work.** `turbotokens stream` for JSON events, budget webhooks, Prometheus metrics, JSON reports, and a Claude Code status line.
 - **Keep a record you can share.** Export a contribution heatmap or a yearly summary as an SVG. The CLI generates both.
 
@@ -133,13 +133,14 @@ turbotokens monthly --since 20260101    # This year's monthly totals
 | [Goose](rust/adapters/goose) · `goose` | [Kilo](rust/adapters/kilo) · `kilo` | [OpenClaw](rust/adapters/openclaw) · `openclaw` |
 | [pi-agent](rust/adapters/pi) · `pi` | [Antigravity](rust/adapters/antigravity) · `antigravity` | [ZCode](rust/adapters/zcode) · `zcode` |
 
-Agent formats differ. Available model, project, cache, and session details depend on what each agent records. Live mode currently supports Claude Code and Codex. [Adapter notes →](rust/adapters/README.md)
+Agent formats differ. Available model, project, cache, and session details depend on what each agent records. Live mode currently supports Claude Code, Codex, and Grok Build. [Adapter notes →](rust/adapters/README.md)
 
 ## Watch your agents work
 
 ```sh
 turbotokens live
 turbotokens live --agent codex
+turbotokens live --agent grok
 turbotokens stream                 # JSON event feed
 ```
 
@@ -164,7 +165,7 @@ Send an alert when today's estimated cost crosses your threshold. Use `--alert-t
 ```sh
 # Newline-delimited JSON events (one usage object per line)
 turbotokens stream
-turbotokens stream --agent codex | jq -c '{model, tokens: .totalTokens, cost}'
+turbotokens stream --agent grok | jq -c '{model, tokens: .totalTokens, cost}'
 
 # Prometheus metrics on your machine
 turbotokens live --serve 127.0.0.1:9090
@@ -261,7 +262,7 @@ These are different approaches to the same problem. Here's where each fits, base
 | :--- | :--- | :--- | :--- |
 | Main experience | Fast reports and live usage telemetry | Detailed usage reports and billing blocks | Interactive analytics TUI and sharing platform |
 | Agent coverage | 18 | 18 | 50+ client filters |
-| Live view | Claude Code and Codex event dashboard | Claude billing-block monitor | Interactive multi-client TUI |
+| Live view | Claude Code, Codex, and Grok Build event dashboard | Claude billing-block monitor | Interactive multi-client TUI |
 | Local reports without an account | Yes | Yes | Yes |
 | JSON output | Reports and live events | Reports | Reports and graph export |
 | Shareable visuals | SVG heatmap and yearly card | Tables and exports | Contribution graphs and wrapped images |

@@ -2,7 +2,7 @@
 source: crates/turbotokens-cli-parser/src/tests.rs
 expression: "help_text_for_args(&[\"turbotokens\".to_string(), \"live\".to_string()])"
 ---
-Follow Claude Code or Codex usage in a live dashboard. Use --json, or `turbotokens stream`, for newline-delimited JSON events.
+Follow Claude Code, Codex, or Grok Build usage in a live dashboard. Use --json, or `turbotokens stream`, for newline-delimited JSON events.
 
 USAGE:
   turbotokens live <OPTIONS>
@@ -27,7 +27,7 @@ OPTIONS:
   -h, --help                           Display this help message
   -v, --version                        Display this version
   --interval <interval>                Poll interval in milliseconds (default: 100)
-  --agent <agent>                      Agent to watch (choices: claude | codex) (default: claude)
+  --agent <agent>                      Agent to watch (choices: claude | codex | grok) (default: claude)
   --alert-cost <alert-cost>            Alert when today's cost exceeds this many USD (requires --webhook)
   --alert-tokens <alert-tokens>        Alert when today's tokens exceed this count (requires --webhook)
   --webhook <webhook>                  URL to POST alert events to as JSON

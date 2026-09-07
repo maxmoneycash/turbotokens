@@ -311,9 +311,10 @@ fn parse_command(
                         args.agent = match parser.value_for("--agent")?.as_str() {
                             "claude" => LiveAgent::Claude,
                             "codex" => LiveAgent::Codex,
+                            "grok" => LiveAgent::Grok,
                             agent => {
                                 return Err(format!(
-                                    "Unknown live agent '{agent}'. Expected claude or codex."
+                                    "Unknown live agent '{agent}'. Expected claude, codex, or grok."
                                 ));
                             }
                         }
@@ -1046,7 +1047,7 @@ fn report_flag_alias_error(args: &[String]) -> Option<String> {
 }
 
 fn agent_filter_option_error(args: &[String]) -> Option<String> {
-    // `live --agent claude|codex` selects the agent the tail watches, so the
+    // `live --agent claude|codex|grok` selects the agent the tail watches, so the
     // flag is a live option rather than an unsupported report filter.
     if matches!(command_tokens(args).as_slice(), [command, ..] if command == "live" || command == "stream")
     {

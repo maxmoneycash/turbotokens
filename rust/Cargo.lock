@@ -1083,6 +1083,7 @@ dependencies = [
  "turbotokens-adapter-common",
  "turbotokens-core",
  "turbotokens-test-support",
+ "ureq",
 ]
 
 [[package]]

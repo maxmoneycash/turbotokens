@@ -607,8 +607,12 @@ mod tests {
     #[test]
     fn extracts_choices_from_description() {
         assert_eq!(
-            description_choices("Agent to watch (choices: claude | codex)"),
-            Some(vec!["claude".to_string(), "codex".to_string()])
+            description_choices("Agent to watch (choices: claude | codex | grok)"),
+            Some(vec![
+                "claude".to_string(),
+                "codex".to_string(),
+                "grok".to_string(),
+            ])
         );
         assert_eq!(description_choices("no choices here"), None);
     }
@@ -672,7 +676,7 @@ mod tests {
             "complete -c turbotokens",
             "__fish_turbotokens_at claude daily",
             "-l mode -a 'auto calculate display'",
-            "-l agent -a 'claude codex'",
+            "-l agent -a 'claude codex grok'",
             "-a 'run start stop status'",
             "-a 'bash zsh fish'",
         ] {

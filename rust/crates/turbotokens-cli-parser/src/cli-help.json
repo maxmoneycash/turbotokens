@@ -149,7 +149,7 @@
 		},
 		{
 			"flags": "--agent <agent>",
-			"description": "Agent to watch (choices: claude | codex)",
+			"description": "Agent to watch (choices: claude | codex | grok)",
 			"default": "claude"
 		},
 		{

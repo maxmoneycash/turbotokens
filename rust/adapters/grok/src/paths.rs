@@ -27,6 +27,10 @@ fn homes() -> Vec<PathBuf> {
         .collect()
 }
 
+pub(super) fn data_dirs() -> Vec<PathBuf> {
+    homes()
+}
+
 pub(super) fn discover_usage_logs() -> Vec<PathBuf> {
     let mut files = homes()
         .into_iter()

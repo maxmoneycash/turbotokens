@@ -127,6 +127,7 @@ pub enum LiveAgent {
     #[default]
     Claude,
     Codex,
+    Grok,
 }
 
 #[derive(Clone)]

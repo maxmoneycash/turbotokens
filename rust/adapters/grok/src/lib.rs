@@ -3,10 +3,13 @@ use turbotokens_adapter_common::{
 };
 use turbotokens_core::*;
 
+mod live;
 mod loader;
 mod parser;
 mod paths;
 mod report;
+
+pub use live::run_live;
 
 use crate::{
     PricingMap, Result, cli::AgentCommandArgs, print_json_or_jq, print_usage_table, sort_summaries,

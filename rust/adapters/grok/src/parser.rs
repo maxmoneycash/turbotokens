@@ -104,6 +104,41 @@ pub(super) fn read_usage_log(
         .collect())
 }
 
+pub(super) fn usage_line_from_bytes(
+    line: &[u8],
+    timelines: &ModelTimelines,
+) -> Option<GrokUsageEntry> {
+    let text = std::str::from_utf8(line).ok()?;
+    if !text.contains("shell.turn.inference_done") {
+        return None;
+    }
+    log_line_to_entry(serde_json::from_str(text).ok()?, timelines)
+}
+
+pub(super) fn turn_event_from_bytes(line: &[u8]) -> Option<(String, ModelEvent)> {
+    let text = std::str::from_utf8(line).ok()?;
+    if !text.contains("turn_started") {
+        return None;
+    }
+    turn_line_to_event(serde_json::from_str(text).ok()?)
+}
+
+pub(super) fn record_model_event(
+    timelines: &mut ModelTimelines,
+    session_id: String,
+    event: ModelEvent,
+) {
+    let events = timelines.entry(session_id).or_default();
+    if events
+        .iter()
+        .any(|existing| existing.timestamp == event.timestamp && existing.model == event.model)
+    {
+        return;
+    }
+    let index = events.partition_point(|existing| existing.timestamp <= event.timestamp);
+    events.insert(index, event);
+}
+
 fn log_line_to_entry(line: GrokLogLine, timelines: &ModelTimelines) -> Option<GrokUsageEntry> {
     if line.msg.as_deref() != Some("shell.turn.inference_done") {
         return None;

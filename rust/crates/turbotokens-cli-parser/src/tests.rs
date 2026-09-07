@@ -353,6 +353,12 @@ fn parses_live_agent_alert_webhook_and_serve_options() {
     };
     assert_eq!(args.agent, LiveAgent::Claude);
 
+    let cli = parse(&["turbotokens", "live", "--agent", "grok"]);
+    let Some(Command::Live(args)) = cli.command else {
+        panic!("expected live command");
+    };
+    assert_eq!(args.agent, LiveAgent::Grok);
+
     assert!(
         parse_error(&["turbotokens", "live", "--agent", "gemini"]).contains("Unknown live agent")
     );

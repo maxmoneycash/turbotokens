@@ -33,10 +33,11 @@ Watch today's tokens and estimated spend in the terminal:
 ```sh
 turbotokens live
 turbotokens live --agent codex
+turbotokens live --agent grok
 turbotokens live --interval 250
 ```
 
-Live mode currently follows **Claude Code** (default) or **Codex**. It polls every 100 ms by default. The time until an event appears also depends on when the agent writes its log.
+Live mode currently follows **Claude Code** (default), **Codex**, or **Grok Build**. It polls every 100 ms by default. The time until an event appears also depends on when the agent writes its log. Grok live tails `~/.grok/logs/unified.jsonl` and uses per-session `events.jsonl` files for model names.
 
 Press Ctrl-C to stop.
 
@@ -46,7 +47,7 @@ For scripts, pipes, and other tools, stream one JSON object per usage event:
 
 ```sh
 turbotokens stream
-turbotokens stream --agent codex
+turbotokens stream --agent grok
 turbotokens live --json          # same feed
 ```
 

@@ -366,6 +366,7 @@ pub(crate) fn run_live(args: LiveArgs) -> Result<()> {
     match args.agent {
         LiveAgent::Claude => crate::adapter::claude::run_live(&args),
         LiveAgent::Codex => crate::adapter::codex::run_live(&args),
+        LiveAgent::Grok => crate::adapter::grok::run_live(&args),
     }
 }
 

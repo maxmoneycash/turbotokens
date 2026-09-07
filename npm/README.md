@@ -23,6 +23,7 @@ turbotokens daily --last 7                  # Recent usage across detected agent
 turbotokens claude daily --breakdown        # Claude model costs
 turbotokens codex session                   # Codex usage by session
 turbotokens daily --json                    # Structured output
+turbotokens live --agent grok               # Follow Grok Build while it works
 turbotokens live --agent codex              # Follow Codex while it works
 turbotokens stream                         # JSON token events, one object per line
 turbotokens heatmap --svg heatmap.svg       # Contribution graph
