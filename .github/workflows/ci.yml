@@ -39,6 +39,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Test npm launcher lifecycle
+        run: npm test --prefix npm
       - name: Verify npm package and native launcher
         run: node packaging/smoke-npm.cjs
       - name: Test shell installer

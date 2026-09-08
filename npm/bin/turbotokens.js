@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 "use strict";
 
-const { spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
@@ -10,10 +10,19 @@ if (!fs.existsSync(binary)) {
   console.error("turbotokens: binary is missing. Reinstall with npm install -g turbotokens --ignore-scripts=false.");
   process.exit(1);
 }
-const result = spawnSync(binary, process.argv.slice(2), { stdio: "inherit" });
-if (result.error) {
-  console.error(`turbotokens: ${result.error.message}`);
-  process.exit(1);
+const child = spawn(binary, process.argv.slice(2), { stdio: "inherit" });
+const handlers = new Map();
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  const handler = () => child.kill(signal);
+  handlers.set(signal, handler);
+  process.on(signal, handler);
 }
-if (result.signal) process.kill(process.pid, result.signal);
-else process.exit(result.status === null ? 1 : result.status);
+child.on("error", (error) => {
+  console.error(`turbotokens: ${error.message}`);
+  process.exit(1);
+});
+child.on("exit", (status, signal) => {
+  for (const [name, handler] of handlers) process.removeListener(name, handler);
+  if (signal) process.kill(process.pid, signal);
+  else process.exit(status === null ? 1 : status);
+});
