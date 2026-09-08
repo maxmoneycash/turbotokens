@@ -7,11 +7,22 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const runtime = process.env.TURBOTOKENS_TEST_NODE || process.execPath;
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+let environment = process.env;
 const run = (command, args, options = {}) => execFileSync(command, args, {
-  encoding: 'utf8', shell: process.platform === 'win32', ...options,
+  encoding: 'utf8', shell: process.platform === 'win32', env: environment, ...options,
 });
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'turbotokens-npm-'));
 try {
+  if (process.platform === 'win32') {
+    // Prove installation ignores a conflicting tar.exe earlier on PATH.
+    const shadow = path.join(temporary, 'shadow bin');
+    fs.mkdirSync(shadow);
+    fs.copyFileSync(process.execPath, path.join(shadow, 'tar.exe'));
+    environment = { ...process.env };
+    const pathKey = Object.keys(environment).find(key => key.toLowerCase() === 'path') || 'Path';
+    environment[pathKey] = shadow + path.delimiter + (environment[pathKey] || '');
+    assert.equal(run('tar', ['--version']).trim(), process.version);
+  }
   const packed = JSON.parse(run(npm, ['pack', path.join(root, 'npm'), '--json'], { cwd: temporary }))[0];
   assert(packed.files.some(file => file.path === 'bin/turbotokens.js'));
   assert(packed.files.some(file => file.path === 'LICENSE'));
