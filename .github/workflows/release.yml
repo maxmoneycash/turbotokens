@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/release.yml
       - packaging/smoke-linux.py
+      - packaging/RELEASE_README.md
       - rust/**
       - rust-toolchain.toml
       - .cargo/**
@@ -92,7 +93,8 @@ jobs:
         run: |
           mkdir -p dist
           cp "rust/target/${{ matrix.target }}/release/turbotokens" dist/turbotokens
-          cp README.md LICENSE dist/
+          sed "s/@REVISION@/$GITHUB_SHA/g" packaging/RELEASE_README.md > dist/README.md
+          cp LICENSE dist/
           tar -C dist -czf "${{ matrix.asset }}" turbotokens README.md LICENSE
 
       - name: Package zip (Windows)
@@ -101,7 +103,8 @@ jobs:
         run: |
           mkdir -p dist
           cp "rust/target/${{ matrix.target }}/release/turbotokens.exe" dist/turbotokens.exe
-          cp README.md, LICENSE dist/
+          (Get-Content -Raw packaging/RELEASE_README.md).Replace('@REVISION@', $env:GITHUB_SHA) | Set-Content -Encoding utf8 dist/README.md
+          cp LICENSE dist/
           Compress-Archive -Path dist/turbotokens.exe, dist/README.md, dist/LICENSE -DestinationPath "${{ matrix.asset }}"
 
       - name: Keep validated archive
