@@ -1,0 +1,235 @@
+name: Assemble verified native v1.1.3 bundle
+
+on:
+  push:
+    branches: [validation/release-bundle-v1.1.3]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c5a71c3e01215601901fc4c38f4cb2133674b542
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source matches the reviewed checks
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = c5a71c3e01215601901fc4c38f4cb2133674b542
+          git diff --exit-code 822b236b3900294276bac9c5d19ba28b4c0b2530 HEAD -- rust rust-toolchain.toml .cargo .gitattributes packaging/smoke-native.py packaging/smoke-linux.py packaging/RELEASE_README.md
+          git diff --exit-code b539d72974ee8e99faf4aa0d13cfe383e1c68404 HEAD -- npm/install.js npm/bin/turbotokens.js npm/test/launcher.test.cjs packaging/smoke-npm.cjs
+          git diff --exit-code c4960f34a14a945e5e4c5238b29842c76070e9e4 HEAD -- rust/Cargo.lock
+      - name: Download immutable artifacts and verify evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          "use strict";
+          const assert = require("node:assert/strict");
+          const { execFileSync } = require("node:child_process");
+          const { createHash } = require("node:crypto");
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const os = require("node:os");
+          const REPO = "maxmoneycash/turbotokens";
+          const SOURCE = "c5a71c3e01215601901fc4c38f4cb2133674b542";
+          const PRICING = {"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"};
+          const ARCHIVES = [{"archive_bytes":3034876,"archive_sha256":"40cf36a46fc67f458ec35b49a73eb59eaee81630d8040d982ca8d7d9671de3c9","asset":"turbotokens-macos-arm64.tar.gz","binary_sha256":"9f750da9ba4929cf995e70f675e50c3045026468a6e3b758a6f0ceaa36fbe90d","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"aarch64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3379146,"archive_sha256":"b3acea3134c9d4a0fbdeef9baf2d20bd3027b9b167670e18b3f50e129f725221","asset":"turbotokens-macos-x64.tar.gz","binary_sha256":"43e07c2f0948d85ab953f2568c0d43e242a4f070b1d59102245e3e1f772dd84b","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"x86_64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3613791,"archive_sha256":"2860efc6f0f4240ea4dff913d163df166c8722784e3a23970788ce53f5e15b44","asset":"turbotokens-linux-x64.tar.gz","binary_sha256":"37d072c8ae9be930301781dc1d43ef8999c0ad3fb8b7333a343759b7bab826f6","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"x86_64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3333713,"archive_sha256":"5b69781722a8e8b574b89be8a1022b5b53583c64e2c9f25dac11f667d8a18736","asset":"turbotokens-linux-arm64.tar.gz","binary_sha256":"15a23de5af9b2f93d66046796ff77bd49903a76df62158dc988be16d43102516","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"aarch64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3206403,"archive_sha256":"c3b1ec29d894cdee1637c1b2d20c9e60784ce8e8c4f6573b6f0d3827c5dcfa0b","asset":"turbotokens-windows-x64.zip","binary_sha256":"f5921d2e261a5954e7e7c55e437babdf42eac294f179285cf2378c9b3df6f497","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"x86_64-pc-windows-msvc","version":"turbotokens 1.1.3"},{"archive_bytes":2853413,"archive_sha256":"7336be48cba8253d3adf1d918723f735629bd73936a1547e22555d5f811f81ce","asset":"turbotokens-windows-arm64.zip","binary_sha256":"c85cb16c5d4678a0a140f7cfbf2c324c538f67508110e14195061067603aa6d4","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"c5a71c3e01215601901fc4c38f4cb2133674b542","target":"aarch64-pc-windows-msvc","version":"turbotokens 1.1.3"}];
+          const ARTIFACTS = [{"id":10063743370,"name":"turbotokens-macos-x64.tar.gz","digest":"sha256:f79c1586ea3bfbfca71c395b2347fd22e240b8799bdb0e66ee0fc34b56b0aa2b","size_in_bytes":3379465},{"id":10063741556,"name":"archive-evidence-x86_64-apple-darwin","digest":"sha256:93d48d4ef4409ebb64a1d6153d1fc8ba2267487adda6992e9c97164226ce1753","size_in_bytes":696},{"id":10063646227,"name":"turbotokens-windows-x64.zip","digest":"sha256:9c7de026a440f41c6f4bd813684063a6efaeefb880d6bf8f26f20baaf7726d16","size_in_bytes":3206587},{"id":10063644487,"name":"archive-evidence-x86_64-pc-windows-msvc","digest":"sha256:94a92e3d3edb6f29588793e63a02b4d445d5cd6028270d04e118a52c37bbd053","size_in_bytes":704},{"id":10063618316,"name":"turbotokens-windows-arm64.zip","digest":"sha256:a4ea6c6590246c040f74a2144696d3050236aa7d96bd67e64fa4fd1f2b81c294","size_in_bytes":2853659},{"id":10063616918,"name":"archive-evidence-aarch64-pc-windows-msvc","digest":"sha256:87390d09f9f0b00278f368a1d3e81f36c41dc8537d673f89e1965948161e06d0","size_in_bytes":708},{"id":10063611776,"name":"turbotokens-macos-arm64.tar.gz","digest":"sha256:08216b09998f29b86e1d7dec65f10fff91b81bca0fa8eb66e879f49151ba6886","size_in_bytes":3034434},{"id":10063610310,"name":"archive-evidence-aarch64-apple-darwin","digest":"sha256:1418f5cd365604cf804467c44e6041829caa70cb5c2589539724f8d6826fd661","size_in_bytes":699},{"id":10063570411,"name":"turbotokens-linux-arm64.tar.gz","digest":"sha256:c8488b5d6f1b823ecf4076448fcaa84af9ed6c9a986d1b6347753527e80108d6","size_in_bytes":3332460},{"id":10063569504,"name":"archive-evidence-aarch64-unknown-linux-musl","digest":"sha256:76af4e91946735bfd1a5fb8d062e670a62cf194e492c59343c15ebe7723a6db7","size_in_bytes":714},{"id":10063563647,"name":"turbotokens-linux-x64.tar.gz","digest":"sha256:cdb1a58ae60d6eb92a6fd56b6f10714354343508ae46cdbf73a48ecfc2cbb51f","size_in_bytes":3612920},{"id":10063562174,"name":"archive-evidence-x86_64-unknown-linux-musl","digest":"sha256:304e0ccbb136dede1ec2f29e2791347398f023d666d067104dce93b5794d4c34","size_in_bytes":712},{"id":10063420283,"name":"native-release-inputs","digest":"sha256:d796d1bcb60c1c27c91d648e5e178e4984dc33381231296839a892108c32ce68","size_in_bytes":115010}];
+          const AUDIT_ARTIFACT = {"id":10062778770,"name":"rust-dependency-audit","digest":"sha256:b7cbdf9fb3802425aa928e0313274b27a0d1b4fd25809652d3e39979e0c56100","size_in_bytes":965};
+          const TESTS_ARTIFACT = {"id":10064014857,"name":"full-workspace-tests-v1.1.3","digest":"sha256:608f1ebc95651dc6917325165521da024b0b417887c27c70ef6592263e7c3d74","size_in_bytes":16313};
+          function validateArchiveEvidence(evidence, expected) {
+            function requireValue(condition, message) {
+              if (!condition) throw new Error("Invalid archive evidence: " + message);
+            }
+            requireValue(evidence?.source_sha === expected.sourceSha, "source revision differs");
+            requireValue(evidence.target === expected.target && evidence.asset === expected.asset, "target or filename differs");
+            requireValue(evidence.version === "turbotokens 1.1.3", "binary version differs");
+            requireValue(evidence.rustc === "rustc 1.97.1 (8bab26f4f 2026-07-14)", "compiler differs");
+            requireValue(/^[0-9a-f]{64}$/.test(evidence.archive_sha256 || ""), "archive hash is missing");
+            requireValue(/^[0-9a-f]{64}$/.test(evidence.binary_sha256 || ""), "binary hash is missing");
+            requireValue(Number.isSafeInteger(evidence.archive_bytes) && evidence.archive_bytes > 0, "invalid archive size");
+            const binary = expected.asset.endsWith(".zip") ? "turbotokens.exe" : "turbotokens";
+            requireValue(Array.isArray(evidence.members) && JSON.stringify([...evidence.members].sort()) === JSON.stringify(["LICENSE", "README.md", binary].sort()), "archive members differ");
+            requireValue(evidence.pricing?.sha256 === expected.pricing.sha256 &&
+              evidence.pricing?.source_commit === expected.pricing.source_commit &&
+              evidence.pricing?.url === expected.pricing.url &&
+              evidence.pricing?.bytes === expected.pricing.bytes, "pricing input differs");
+            return evidence;
+          }
+          
+          const sha256 = bytes => createHash("sha256").update(bytes).digest("hex");
+          const api = route => JSON.parse(execFileSync("gh", ["api", route], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 }));
+          function requireRun(id, head) {
+            const run = api("repos/" + REPO + "/actions/runs/" + id);
+            assert.equal(run.head_sha, head);
+            assert.equal(run.status, "completed");
+            assert.equal(run.conclusion, "success");
+            return { id, head_sha: head, url: run.html_url };
+          }
+          const runs = {
+            native: requireRun(34244597259, "03107bf118dffe6543119bceedbdfa3ab3306d2f"),
+            source: requireRun(34243727035, SOURCE),
+            full_tests: requireRun(34245875296, "c729c1673d78b512a724c9247ac824309faf69d2"),
+            audit: requireRun(34242692330, "c4960f34a14a945e5e4c5238b29842c76070e9e4"),
+            npm_runtime: requireRun(34241574184, "b539d72974ee8e99faf4aa0d13cfe383e1c68404"),
+          };
+          const jobs = api("repos/" + REPO + "/actions/runs/" + runs.native.id + "/jobs?per_page=100").jobs;
+          assert.equal(jobs.length, 7);
+          assert(jobs.every(job => job.status === "completed" && job.conclusion === "success"));
+          for (const expected of ARCHIVES) {
+            const matches = jobs.filter(job => job.name.includes(expected.target));
+            assert.equal(matches.length, 1);
+            for (const name of ["Verify the shared pricing snapshot", "Verify native reports and cache updates", "Verify packaged contents and record hashes"]) {
+              assert(matches[0].steps.some(step => step.name === name && step.conclusion === "success"), expected.target + ": " + name);
+            }
+            if (expected.target.includes("linux")) assert(matches[0].steps.some(step => step.name === "Verify static Linux linkage and container reports" && step.conclusion === "success"));
+          }
+          const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "turbotokens-release-bundle-"));
+          const output = path.resolve("release-bundle");
+          fs.mkdirSync(output, { recursive: true });
+          assert.equal(fs.readdirSync(output).length, 0);
+          function unpack(artifact, filenames) {
+            assert(Number.isSafeInteger(artifact.id) && artifact.id > 0);
+            const zip = execFileSync("gh", ["api", "repos/" + REPO + "/actions/artifacts/" + artifact.id + "/zip"], { maxBuffer: 32 * 1024 * 1024 });
+            assert.equal(zip.length, artifact.size_in_bytes, artifact.name + ": artifact size");
+            assert.equal("sha256:" + sha256(zip), artifact.digest, artifact.name + ": artifact digest");
+            const file = path.join(temporary, String(artifact.id) + ".zip");
+            fs.writeFileSync(file, zip);
+            const names = execFileSync("unzip", ["-Z1", file], { encoding: "utf8", maxBuffer: 1024 * 1024 }).trim().split(/\r?\n/).sort();
+            assert.deepEqual(names, [...filenames].sort(), artifact.name + ": inner filenames");
+            const contents = {};
+            for (const name of filenames) {
+              assert(!name.includes("/") && !name.includes("\\") && !/[?*\[\]\r\n]/.test(name));
+              contents[name] = execFileSync("unzip", ["-p", file, name], { maxBuffer: 32 * 1024 * 1024 });
+            }
+            return contents;
+          }
+          function namedArtifact(name) {
+            const matches = ARTIFACTS.filter(artifact => artifact.name === name);
+            assert.equal(matches.length, 1);
+            return matches[0];
+          }
+          try {
+            const inputFiles = unpack(namedArtifact("native-release-inputs"), ["release-inputs.json", "model_prices_and_context_window.json"]);
+            const inputs = JSON.parse(inputFiles["release-inputs.json"]);
+            assert.equal(inputs.source_sha, SOURCE);
+            assert.deepEqual(inputs.pricing, PRICING);
+            assert.equal(sha256(inputFiles["model_prices_and_context_window.json"]), PRICING.sha256);
+            assert.equal(inputFiles["model_prices_and_context_window.json"].length, PRICING.bytes);
+            const checked = [];
+            for (const expected of ARCHIVES) {
+              const filename = "archive-evidence-" + expected.target + ".json";
+              const evidence = JSON.parse(unpack(namedArtifact("archive-evidence-" + expected.target), [filename])[filename]);
+              validateArchiveEvidence(evidence, { sourceSha: SOURCE, target: expected.target, asset: expected.asset, pricing: PRICING });
+              assert.deepEqual(evidence, expected, expected.asset + ": evidence differs from the reviewed record");
+              const data = unpack(namedArtifact(expected.asset), [expected.asset])[expected.asset];
+              assert.equal(data.length, evidence.archive_bytes, expected.asset + ": archive size");
+              assert.equal(sha256(data), evidence.archive_sha256, expected.asset + ": archive hash");
+              fs.writeFileSync(path.join(output, expected.asset), data);
+              checked.push(evidence);
+              console.log("Verified " + expected.asset + " " + evidence.archive_sha256);
+            }
+            const auditFiles = unpack(AUDIT_ARTIFACT, ["rustsec-report.json", "source-revision.txt", "lockfile-sha256.txt", "advisory-db-revision.txt"]);
+            const audit = JSON.parse(auditFiles["rustsec-report.json"]);
+            assert.equal(audit.vulnerabilities.found, false);
+            assert.equal(audit.vulnerabilities.count, 0);
+            assert.deepEqual(audit.vulnerabilities.list, []);
+            assert.deepEqual(audit.warnings, {});
+            assert.deepEqual(audit.settings.ignore, []);
+            assert.deepEqual(audit.settings.target_arch, []);
+            assert.deepEqual(audit.settings.target_os, []);
+            assert.equal(audit.lockfile["dependency-count"], 147);
+            assert.equal(audit.database["last-commit"], auditFiles["advisory-db-revision.txt"].toString().trim());
+            const lockfileHash = sha256(fs.readFileSync("rust/Cargo.lock"));
+            assert.equal(auditFiles["lockfile-sha256.txt"].toString().split(/\s+/)[0], lockfileHash);
+            const fullTests = unpack(TESTS_ARTIFACT, ["full-workspace-tests.log"])["full-workspace-tests.log"];
+            const counts = { passed: 0, failed: 0, ignored: 0, measured: 0, filtered: 0, suites: 0 };
+            for (const line of fullTests.toString().split("\n")) {
+              const match = line.match(/test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out/);
+              if (match) {
+                for (const [index, name] of ["passed", "failed", "ignored", "measured", "filtered"].entries()) counts[name] += Number(match[index + 1]);
+                counts.suites++;
+              }
+            }
+            assert.deepEqual(counts, { passed: 769, failed: 0, ignored: 3, measured: 0, filtered: 0, suites: 54 });
+            const harness = fs.readFileSync("rust/bench/stress-claude.py", "utf8").replace(/\r\n/g, "\n");
+            const provenance = {
+              source_sha: SOURCE, version: "1.1.3", inputs, runs,
+              assembled_at: new Date().toISOString(), assembler_run_id: Number(process.env.GITHUB_RUN_ID),
+              archives: checked, artifact_records: [...ARTIFACTS, AUDIT_ARTIFACT, TESTS_ARTIFACT],
+              full_tests: { ...counts, log_sha256: sha256(fullTests) },
+              dependency_audit: audit, dependency_audit_source_sha: auditFiles["source-revision.txt"].toString().trim(), lockfile_sha256: lockfileHash,
+              reviewed_harness_hashes: { lf: sha256(harness), crlf: sha256(harness.replace(/\n/g, "\r\n")) },
+              soak_requirement: { run_id: 34234896673, head_sha: "7ed32daf71d91d0ea4fb136ba66b09a083e8171d", source_sha: "822b236b3900294276bac9c5d19ba28b4c0b2530", duration_seconds: 18000, report_cache_limit: 256 },
+              scope: "Fresh native archives and their shared pricing input passed native smoke and archive checks. The separate five-hour soak covers identical Rust source with recorded-cost fixtures and must pass before publication.",
+            };
+            fs.writeFileSync(path.join(output, "BUILD_PROVENANCE.json"), JSON.stringify(provenance, null, 2) + "\n");
+            fs.writeFileSync(path.join(output, "SHA256SUMS"), [...checked].sort((a, b) => a.asset.localeCompare(b.asset)).map(item => item.archive_sha256 + "  " + item.asset).join("\n") + "\n");
+            console.log(JSON.stringify({ source_sha: SOURCE, archives: checked.length, full_tests: counts, known_vulnerabilities: audit.vulnerabilities.count, pricing_sha256: PRICING.sha256 }));
+          } finally {
+            fs.rmSync(temporary, { recursive: true, force: true });
+          }
+          
+          NODE
+      - name: Independently verify each packaged executable and guide
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, stat, tarfile, zipfile
+          from pathlib import Path
+          root = Path("release-bundle")
+          provenance = json.loads((root / "BUILD_PROVENANCE.json").read_text())
+          expected_source = "c5a71c3e01215601901fc4c38f4cb2133674b542"
+          assert provenance["source_sha"] == expected_source
+          license_text = Path("LICENSE").read_text().replace("\r\n", "\n")
+          for item in provenance["archives"]:
+              archive_path = root / item["asset"]
+              binary = "turbotokens.exe" if item["asset"].endswith(".zip") else "turbotokens"
+              expected = {binary, "README.md", "LICENSE"}
+              assert archive_path.stat().st_size == item["archive_bytes"]
+              assert hashlib.sha256(archive_path.read_bytes()).hexdigest() == item["archive_sha256"]
+              if item["asset"].endswith(".zip"):
+                  with zipfile.ZipFile(archive_path) as archive:
+                      entries = archive.infolist()
+                      assert len(entries) == 3 and {entry.filename for entry in entries} == expected
+                      assert all(not entry.is_dir() and entry.file_size <= 64 * 1024 * 1024 for entry in entries)
+                      assert all(stat.S_IFMT(entry.external_attr >> 16) in (0, stat.S_IFREG) for entry in entries)
+                      contents = {name: archive.read(name) for name in expected}
+              else:
+                  with tarfile.open(archive_path, "r:gz") as archive:
+                      entries = archive.getmembers()
+                      assert len(entries) == 3 and {entry.name for entry in entries} == expected
+                      assert all(entry.isfile() and entry.size <= 64 * 1024 * 1024 for entry in entries)
+                      assert archive.getmember(binary).mode & 0o111
+                      contents = {name: archive.extractfile(name).read() for name in expected}
+              assert hashlib.sha256(contents[binary]).hexdigest() == item["binary_sha256"]
+              assert contents["LICENSE"].decode("utf-8-sig").replace("\r\n", "\n") == license_text
+              readme = contents["README.md"].decode("utf-8-sig")
+              assert "@REVISION@" not in readme
+              for guide in ["README.md", "docs/installation.md", "docs/migrating-from-ccusage.md", "docs/usage.md"]:
+                  assert "https://github.com/maxmoneycash/turbotokens/blob/" + expected_source + "/" + guide in readme
+              print("Archive contents verified:", item["asset"])
+          files = {path.name for path in root.iterdir()}
+          assert files == {item["asset"] for item in provenance["archives"]} | {"SHA256SUMS", "BUILD_PROVENANCE.json"}
+          print("Bundle verified:", len(provenance["archives"]), "native archives")
+          
+          PY
+          cd release-bundle
+          sha256sum --check SHA256SUMS
+      - name: Keep the verified release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle-v1.1.3
+          path: release-bundle/*
+          if-no-files-found: error
