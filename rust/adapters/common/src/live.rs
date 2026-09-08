@@ -14,8 +14,9 @@ use std::{
 
 use serde_json::json;
 use turbotokens_core::{
-    Color, TimestampMs, TokenUsageRaw, cli::SharedArgs, color, fast::FxHashMap, format_currency,
-    format_number, format_rfc3339_millis, json_float, terminal_width, truncate_to_width, utc_now,
+    Color, TimestampMs, TokenUsageRaw, cli::SharedArgs, color, escape_terminal_text,
+    fast::FxHashMap, format_currency, format_number, format_rfc3339_millis, json_float,
+    terminal_width, truncate_to_width, utc_now,
 };
 
 /// Window for the trailing burn rate and for counting active sessions.
@@ -361,11 +362,11 @@ pub fn write_human_line(out: &mut impl Write, event: &LiveEvent) -> io::Result<(
         out,
         "{}  {}  {} tok  ${:.4}  {}/{}",
         format_rfc3339_millis(TimestampMs::from_millis(event.timestamp_ms)),
-        event.model.as_deref().unwrap_or("unknown"),
+        escape_terminal_text(event.model.as_deref().unwrap_or("unknown")),
         format_number(event.total_tokens()),
         event.cost,
-        event.project,
-        event.session_id,
+        escape_terminal_text(&event.project),
+        escape_terminal_text(&event.session_id),
     )?;
     out.flush()
 }
@@ -668,7 +669,9 @@ fn dashboard_lines(shared: &SharedArgs, view: &DashboardView) -> Vec<String> {
             shared,
             format!(
                 "turbotokens live — {} files · {} · {}ms",
-                view.files_watched, view.dirs, view.interval_ms,
+                view.files_watched,
+                escape_terminal_text(&view.dirs),
+                view.interval_ms,
             ),
             Color::Blue,
         ),
@@ -708,7 +711,7 @@ fn dashboard_lines(shared: &SharedArgs, view: &DashboardView) -> Vec<String> {
         let bar = format!("{}{}", "█".repeat(filled), "░".repeat(10 - filled));
         lines.push(format!(
             "  {:<10}  {:>10} tok  {:>8}  {}  {:.0}%",
-            truncate_to_width(short_model(model), 10),
+            truncate_to_width(&escape_terminal_text(short_model(model)), 10),
             format_number(totals.total()),
             format_currency(totals.cost),
             bar,
@@ -728,9 +731,9 @@ fn dashboard_lines(shared: &SharedArgs, view: &DashboardView) -> Vec<String> {
             .join(", ");
         lines.push(format!(
             "  {:<8} {:<8} {:<18} {:>10} tok  {:>8}  {}",
-            truncate_to_width(&session.project, 8),
-            truncate_to_width(&session.session_id, 8),
-            truncate_to_width(&models, 18),
+            truncate_to_width(&escape_terminal_text(&session.project), 8),
+            truncate_to_width(&escape_terminal_text(&session.session_id), 8),
+            truncate_to_width(&escape_terminal_text(&models), 18),
             format_number(session.totals.total()),
             format_currency(session.totals.cost),
             color(
@@ -759,7 +762,12 @@ fn dashboard_lines(shared: &SharedArgs, view: &DashboardView) -> Vec<String> {
                 shared,
                 format!(
                     "{:<12}",
-                    truncate_to_width(short_model(event.model.as_deref().unwrap_or("unknown")), 12,)
+                    truncate_to_width(
+                        &escape_terminal_text(short_model(
+                            event.model.as_deref().unwrap_or("unknown")
+                        )),
+                        12,
+                    )
                 ),
                 Color::Yellow,
             ),
@@ -849,6 +857,99 @@ mod tests {
                 "totalTokens": 155,
                 "cost": 0.0123,
             })
+        );
+    }
+
+    fn event_with_control_labels() -> LiveEvent {
+        LiveEvent {
+            timestamp_ms: 1_785_175_200_000,
+            date: "2026-07-27".to_string(),
+            project: Arc::from("p\nPROJECT"),
+            session_id: Arc::from("s\nSESSION\t"),
+            model: Some("m\nMODEL\x1b[2J\x1b]0;X\x07".to_string()),
+            usage: TokenUsageRaw {
+                input_tokens: 100,
+                ..Default::default()
+            },
+            cost: 0.01,
+            agent: "claude",
+        }
+    }
+
+    #[test]
+    fn human_events_stay_on_one_line_and_json_keeps_original_labels() {
+        let event = event_with_control_labels();
+        let mut human = Vec::new();
+        write_human_line(&mut human, &event).unwrap();
+        let human = String::from_utf8(human).unwrap();
+        assert_eq!(human.bytes().filter(|byte| *byte == b'\n').count(), 1);
+        assert!(human.contains("m\\nMODEL\\u{1b}[2J\\u{1b}]0;X\\u{7}"));
+        assert!(human.contains("p\\nPROJECT/s\\nSESSION\\t"));
+        assert!(!human.trim_end_matches('\n').chars().any(char::is_control));
+
+        let mut ndjson = Vec::new();
+        write_json_line(&mut ndjson, &event.to_json()).unwrap();
+        assert_eq!(ndjson.iter().filter(|byte| **byte == b'\n').count(), 1);
+        assert!(!ndjson.contains(&0x1b));
+        let decoded: serde_json::Value = serde_json::from_slice(&ndjson).unwrap();
+        assert_eq!(decoded["model"], event.model.as_deref().unwrap());
+        assert_eq!(decoded["project"], event.project.as_ref());
+        assert_eq!(decoded["sessionId"], event.session_id.as_ref());
+    }
+
+    #[test]
+    fn dashboard_escapes_labels_before_layout_and_preserves_its_own_controls() {
+        let event = event_with_control_labels();
+        let totals = TokenTotals {
+            input_tokens: 100,
+            cost: 0.01,
+            ..Default::default()
+        };
+        let recent = VecDeque::from([event.clone()]);
+        let view = DashboardView {
+            dirs: "dir\nnext\x1b[2J\x1b]0;X\x07".to_string(),
+            interval_ms: 100,
+            files_watched: 1,
+            today: "2026-07-27",
+            today_totals: &totals,
+            burn_rate: 0.0,
+            burn_sparkline: "▁▁▁".to_string(),
+            models: vec![(event.model.clone().unwrap(), totals.clone())],
+            sessions: vec![SessionView {
+                project: event.project.to_string(),
+                session_id: event.session_id.to_string(),
+                models: vec![event.model.unwrap()],
+                totals: totals.clone(),
+                last_activity_ms: utc_now().as_millis(),
+            }],
+            recent: &recent,
+            alert_banner: None,
+        };
+        let shared = SharedArgs {
+            no_color: true,
+            ..Default::default()
+        };
+        let mut dashboard = Dashboard::default();
+        let mut first = Vec::new();
+        dashboard.render(&shared, &view, &mut first).unwrap();
+        let first = String::from_utf8(first).unwrap();
+        assert!(first.contains("dir\\nnext"));
+        assert_eq!(
+            first.bytes().filter(|byte| *byte == b'\n').count(),
+            dashboard.rendered_lines
+        );
+        assert!(first.lines().all(|line| line.starts_with("\x1b[2K")));
+        assert!(!first.contains("\x1b[2J"));
+        assert!(!first.contains("\x1b]"));
+        assert!(!first.contains('\x07'));
+
+        let mut second = Vec::new();
+        dashboard.render(&shared, &view, &mut second).unwrap();
+        let second = String::from_utf8(second).unwrap();
+        assert!(second.starts_with(&format!("\x1b[{}A", dashboard.rendered_lines)));
+        assert_eq!(
+            second.bytes().filter(|byte| *byte == b'\n').count(),
+            dashboard.rendered_lines
         );
     }
 
