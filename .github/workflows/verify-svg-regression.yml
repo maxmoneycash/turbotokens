@@ -1,0 +1,69 @@
+name: Reproduce SVG control-character regression
+on:
+  push:
+    branches: [validation/svg-regression-20260908]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fe77dabc24f89019cdbebf362fe46ddb27b9b5fb
+          persist-credentials: false
+      - name: Confirm an old binary fails the new XML regression
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, importlib.util, io, json, os, subprocess, tarfile, tempfile, zipfile
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          spec = importlib.util.spec_from_file_location("native_smoke", "packaging/smoke-native.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          outer = subprocess.check_output(["gh", "api", "repos/maxmoneycash/turbotokens/actions/artifacts/10063563647/zip"])
+          assert len(outer) == 3612920
+          assert hashlib.sha256(outer).hexdigest() == "cdb1a58ae60d6eb92a6fd56b6f10714354343508ae46cdbf73a48ecfc2cbb51f"
+          with zipfile.ZipFile(io.BytesIO(outer)) as zipped:
+              assert zipped.namelist() == ["turbotokens-linux-x64.tar.gz"]
+              archive = zipped.read(zipped.namelist()[0])
+          assert hashlib.sha256(archive).hexdigest() == "2860efc6f0f4240ea4dff913d163df166c8722784e3a23970788ce53f5e15b44"
+          with tempfile.TemporaryDirectory(prefix="svg-regression-") as temporary:
+              root = Path(temporary)
+              binary = root / "turbotokens"
+              with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as packed:
+                  binary.write_bytes(packed.extractfile("turbotokens").read())
+              assert hashlib.sha256(binary.read_bytes()).hexdigest() == "37d072c8ae9be930301781dc1d43ef8999c0ad3fb8b7333a343759b7bab826f6"
+              binary.chmod(0o755)
+              env = module.isolated_environment(root)
+              source = Path(env["CLAUDE_CONFIG_DIR"]) / "projects" / "fixture" / "fixture.jsonl"
+              source.parent.mkdir(parents=True)
+              config = root / "config" / "neutral.json"
+              config.write_text("{}\n")
+              def run(args):
+                  return subprocess.run([str(binary), *args], cwd=env["HOME"], env=env,
+                                        capture_output=True, timeout=30)
+              try:
+                  module.svg_labels(run, source, root, config)
+              except ET.ParseError as error:
+                  assert (root / "markup.svg").is_file()
+                  ET.parse(root / "markup.svg")
+                  assert (root / "controls.svg").is_file()
+                  result = {"status": "passed", "baseline_source": "c5a71c3e01215601901fc4c38f4cb2133674b542",
+                            "baseline_binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+                            "regression": "XML-invalid model label", "expected_error": str(error)}
+                  Path("svg-regression-baseline.json").write_text(json.dumps(result, indent=2) + "\n")
+                  print(json.dumps(result))
+              else:
+                  raise AssertionError("Expected the old SVG export to fail XML parsing")
+          
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: svg-regression-baseline
+          path: svg-regression-baseline.json
+          if-no-files-found: error
