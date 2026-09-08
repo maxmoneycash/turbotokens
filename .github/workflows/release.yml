@@ -4,6 +4,12 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      soak_seconds:
+        description: "Optional stress duration per native target (seconds)"
+        type: choice
+        default: "0"
+        options: ["0", "1800", "3600", "18000"]
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -19,6 +25,7 @@ permissions:
 
 jobs:
   build:
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +116,31 @@ jobs:
       - name: Verify static Linux linkage and container reports
         if: runner.os == 'Linux'
         run: python3 packaging/smoke-linux.py ./rust/target/${{ matrix.target }}/release/turbotokens "$RELEASE_VERSION"
+
+      - name: Run extended mutation check (manual)
+        id: extended_soak
+        if: github.event_name == 'workflow_dispatch' && inputs.soak_seconds != '0'
+        shell: bash
+        env:
+          SOAK_SECONDS: ${{ inputs.soak_seconds }}
+        run: |
+          set -euo pipefail
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary="$binary.exe"
+            python_command=python
+          fi
+          binary="$("$python_command" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "$binary")"
+          "$python_command" rust/bench/stress-claude.py --turbotokens "$binary" --seed 20260908 --duration-seconds "$SOAK_SECONDS" --output "extended-soak-${{ matrix.target }}.json"
+
+      - name: Keep extended mutation evidence
+        if: always() && steps.extended_soak.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extended-soak-${{ matrix.target }}
+          path: extended-soak-${{ matrix.target }}.json
+          if-no-files-found: warn
 
       - name: Package tarball
         if: runner.os != 'Windows'

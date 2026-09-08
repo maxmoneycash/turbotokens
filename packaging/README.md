@@ -55,3 +55,21 @@ The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.2`) and `T
 TURBOTOKENS_VERSION=v1.1.2 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
 /tmp/turbotokens-install/turbotokens --version
 ```
+
+## Longer native checks
+
+The release workflow tests synthetic reports and live log changes on all six
+native targets. A manual run can also stress each target for 30 minutes, one
+hour, or five hours using `soak_seconds`. Pull requests and version tags keep the
+short checks. Manual runs retain archives and JSON evidence without publishing.
+
+```sh
+gh workflow run release.yml --repo maxmoneycash/turbotokens \
+  --ref main -f soak_seconds=3600
+```
+
+Choose a reviewed commit or version tag with `--ref` for repeatable evidence.
+Each target runs the deterministic [Claude mutation harness](../rust/bench/stress-claude.py)
+with isolated synthetic logs, checks all four token categories and recorded cost,
+and requires cached/uncached JSON parity. This does not cover every agent or
+application integration.
