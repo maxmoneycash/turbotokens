@@ -85,10 +85,10 @@ turbotokens doctor
 Keep npm installation scripts enabled: the package's `postinstall` step downloads
 the executable. If it reports a missing binary, reinstall with
 `npm install -g turbotokens --ignore-scripts=false`. The installer also needs
-`tar.exe`; if that command is unavailable, use the native ZIP below.
+`tar.exe`; if that command is unavailable, use the native ZIP above.
 
 If a v1.1.2 npm install reports `tar: Cannot connect to C`, use the native ZIP
-below. Git Bash or another PATH override can select an incompatible `tar`.
+above. Git Bash or another PATH override can select an incompatible `tar`.
 The v1.1.3 installer prefers Windows' native extractor when available, and falls
 back to `tar` on PATH when it is absent.
 
@@ -151,8 +151,8 @@ Ubuntu 22.04, Debian 12, and Alpine 3.22 for x64 and ARM64. See
 instructions.
 
 Older v1.1.2 Linux binaries require **glibc 2.39**, including those still downloaded
-by npm or Homebrew until their package updates are published. The standalone
-installer below downloads the static v1.1.3 release.
+by npm until its package update is published. Homebrew and the standalone
+installer below now download the static v1.1.3 release.
 
 On x64 or ARM64, install into your home directory:
 
