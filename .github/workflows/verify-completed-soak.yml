@@ -1,0 +1,325 @@
+name: Verify completed native v1.1.3 evidence
+
+on:
+  push:
+    branches: [validation/verify-soak-v1.1.3]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: verify-soak-v1.1.3
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 27ceda8944e85429ddd8e62e650c7994459a9568
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source matches the reviewed checks
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "27ceda8944e85429ddd8e62e650c7994459a9568"
+          git diff --exit-code fe77dabc24f89019cdbebf362fe46ddb27b9b5fb HEAD -- rust rust-toolchain.toml .cargo .gitattributes packaging/smoke-native.py packaging/smoke-linux.py packaging/RELEASE_README.md
+          git diff --exit-code d54c9bfb1b580660e47fce78f5d653841beada88 HEAD -- npm/install.js npm/bin/turbotokens.js npm/test/launcher.test.cjs packaging/smoke-npm.cjs
+          git diff --exit-code c4960f34a14a945e5e4c5238b29842c76070e9e4 HEAD -- rust/Cargo.lock
+          python3 - <<'PY'
+          import json, subprocess
+          base = "822b236b3900294276bac9c5d19ba28b4c0b2530"
+          visual = "rust/crates/turbotokens/src/commands/visual.rs"
+          wrapped = "rust/crates/turbotokens/src/commands/wrapped.rs"
+          changed = subprocess.check_output(["git", "diff", "--name-only", base, "HEAD", "--", "rust"], text=True).splitlines()
+          assert sorted(changed) == sorted([visual, wrapped]), changed
+          def source(revision, path):
+              return subprocess.check_output(["git", "show", revision + ":" + path], text=True)
+          assert source(base, wrapped).split("#[cfg(test)]", 1)[0] == source("HEAD", wrapped).split("#[cfg(test)]", 1)[0]
+          before = source(base, visual).split("/// Escapes the five XML special characters", 1)[0]
+          after = source("HEAD", visual).split("/// Escapes SVG text and replaces characters", 1)[0]
+          assert before == after
+          print(json.dumps({"soak_source": base, "release_source": "27ceda8944e85429ddd8e62e650c7994459a9568", "rust_changes": changed,
+                            "scope": "Only SVG label escaping and its unit tests differ; report/cache code and the stress harness are unchanged."}))
+          PY
+      - name: Verify the release bundle and completed five-hour evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          "use strict";
+          const assert = require("node:assert/strict");
+          const {execFileSync} = require("node:child_process");
+          const {createHash} = require("node:crypto");
+          const fs = require("node:fs"), os = require("node:os"), path = require("node:path");
+          const REPO = "maxmoneycash/turbotokens";
+          const SOURCE = "27ceda8944e85429ddd8e62e650c7994459a9568";
+          const ARCHIVES = [{"archive_bytes":3034995,"archive_sha256":"e0ebdb307c70edb437ea23e98c2579b6747eefe03726174ce11f69f779768659","asset":"turbotokens-macos-arm64.tar.gz","binary_sha256":"77a43ff678097232e8868e1f9d92f8d3b602ee511cd0dc4c2d21ef36828f86bd","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3379632,"archive_sha256":"517cd526ee149e00e1ca6d29069cac0414e868f3202070b11c1717c619bbc811","asset":"turbotokens-macos-x64.tar.gz","binary_sha256":"19b962ae4d7649d90003473eafcc4c79d8792e6fd28ae80d23c5e3f27b1e1425","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3613841,"archive_sha256":"3e024cbbd916e037d5073149a92843960e2871ab8a5d5270ce90d593235f25a3","asset":"turbotokens-linux-x64.tar.gz","binary_sha256":"d0825e2a10aa5a0dec17bcd1126c247d42fa37fa80e466739026af9a822f687c","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3335301,"archive_sha256":"7256ba213586a8a37512b3dee112a63c868accd4af9166883ced8c74f4b924fe","asset":"turbotokens-linux-arm64.tar.gz","binary_sha256":"10a8f04e9f1863e5754821b9c02daba129ca66ceac79717932cb4d064c9620e0","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3206887,"archive_sha256":"a12a578e9e7bd9955e0df95693d2d772a8774f399008694ed0da083e76950d85","asset":"turbotokens-windows-x64.zip","binary_sha256":"fa47942edfdcf20eadad85ba87bcffc67e0ff721f097455424e1aeb9cbad73c4","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-pc-windows-msvc","version":"turbotokens 1.1.3"},{"archive_bytes":2854053,"archive_sha256":"c4cbf294acea7cd3e392f0bbb490ed31baa912a3535077d38dc960f4afd7415b","asset":"turbotokens-windows-arm64.zip","binary_sha256":"4aa17f95bb19db37603234e3964ca97ce8015ae50a5dc3e24b84524c32fdcc1a","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-pc-windows-msvc","version":"turbotokens 1.1.3"}];
+          const PRICING = {"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"};
+          const BUNDLE = {"id":10070769535,"name":"release-bundle-v1.1.3","size_in_bytes":19427577,"url":"https://api.github.com/repos/maxmoneycash/turbotokens/actions/artifacts/10070769535","archive_download_url":"https://api.github.com/repos/maxmoneycash/turbotokens/actions/artifacts/10070769535/zip","expired":false,"created_at":"2026-09-08T18:29:35Z","expires_at":"2026-12-07T18:29:06Z","updated_at":"2026-09-08T18:29:35Z","digest":"sha256:0deb035a1b55b13618fd2ffa97ae0491c25fc12837aff4f0f8b4df0fe612ed0b","workflow_run":{"id":34263301850,"repository_id":1315391958,"head_repository_id":1315391958,"head_branch":"validation/release-bundle-v1.1.3-r2","head_sha":"e3275a5c86c72ae49716856003ca49d21f597161"}};
+          function validateSoakReport(report, expected) {
+            function requireValue(condition, message) {
+              if (!condition) throw new Error("Invalid soak evidence: " + message);
+            }
+            const integer = value => Number.isSafeInteger(value) && value >= 0;
+            const operations = ["append", "append_whitespace", "partial_completion", "rewrite_same_size", "rewrite_larger", "truncate", "delete_restore", "duplicate_across_files"];
+            requireValue(report && typeof report === "object", "report is missing");
+            requireValue(report.status === "passed", "run did not pass");
+            requireValue(report.seed === 20260908, "unexpected seed");
+            requireValue(Number.isFinite(report.duration_seconds) && report.duration_seconds >= 18000, "requested duration is under five hours");
+            requireValue(Number.isFinite(report.elapsed_seconds) && report.elapsed_seconds >= report.duration_seconds, "elapsed duration is incomplete");
+            requireValue(integer(report.steps_completed) && report.steps_completed >= operations.length, "too few completed mutations");
+            requireValue(report.current_step === report.steps_completed, "a mutation was left incomplete");
+            requireValue(integer(report.checkpoints_passed) && report.checkpoints_passed >= report.steps_completed + 2, "missing checkpoints");
+            requireValue(integer(report.child_processes) && report.child_processes >= 3 * report.checkpoints_passed, "missing cached/warm/uncached report executions");
+            requireValue(expected.harnessHashes.includes(report.harness_sha256), "harness does not match reviewed source");
+            requireValue(report.binary?.version === "turbotokens 1.1.3", "unexpected binary version");
+            requireValue(/^[0-9a-f]{64}$/.test(report.binary?.sha256 || ""), "binary hash is missing");
+            requireValue(typeof report.binary?.path === "string" && report.binary.path.replaceAll("\\", "/").includes("/target/" + expected.target + "/release/"), "artifact target does not match binary path");
+            requireValue(report.max_report_cache_files === 256, "cache bound was not enabled");
+            const cache = report.report_cache;
+            requireValue(cache && integer(cache.files) && cache.files <= 256, "final cache exceeds the bound");
+            requireValue(integer(cache.peak_sampled_files) && cache.peak_sampled_files >= cache.files && cache.peak_sampled_files <= 256, "sampled cache exceeds the bound");
+            requireValue(integer(cache.bytes), "invalid cache byte count");
+            requireValue(report.operations && typeof report.operations === "object" && !Array.isArray(report.operations), "operation counts are missing");
+            for (const operation of operations) {
+              requireValue(integer(report.operations[operation]) && report.operations[operation] > 0, "operation was not exercised: " + operation);
+            }
+            requireValue(operations.reduce((sum, operation) => sum + report.operations[operation], 0) === report.steps_completed, "operation counts do not match completed mutations");
+            requireValue(Object.keys(report.operations).every(operation => operations.includes(operation) || operation === "capacity_truncate"), "unrecognized operation");
+            if ("capacity_truncate" in report.operations) requireValue(integer(report.operations.capacity_truncate), "invalid capacity truncation count");
+            return {
+              target: expected.target, status: report.status, version: report.binary.version,
+              binary_sha256: report.binary.sha256, harness_sha256: report.harness_sha256,
+              duration_seconds: report.duration_seconds, elapsed_seconds: report.elapsed_seconds,
+              steps_completed: report.steps_completed, checkpoints_passed: report.checkpoints_passed,
+              child_processes: report.child_processes, report_cache: cache, operations: report.operations,
+            };
+          }
+          function validateArchiveEvidence(evidence, expected) {
+            function requireValue(condition, message) {
+              if (!condition) throw new Error("Invalid archive evidence: " + message);
+            }
+            requireValue(evidence?.source_sha === expected.sourceSha, "source revision differs");
+            requireValue(evidence.target === expected.target && evidence.asset === expected.asset, "target or filename differs");
+            requireValue(evidence.version === "turbotokens 1.1.3", "binary version differs");
+            requireValue(evidence.rustc === "rustc 1.97.1 (8bab26f4f 2026-07-14)", "compiler differs");
+            requireValue(/^[0-9a-f]{64}$/.test(evidence.archive_sha256 || ""), "archive hash is missing");
+            requireValue(/^[0-9a-f]{64}$/.test(evidence.binary_sha256 || ""), "binary hash is missing");
+            requireValue(Number.isSafeInteger(evidence.archive_bytes) && evidence.archive_bytes > 0, "invalid archive size");
+            const binary = expected.asset.endsWith(".zip") ? "turbotokens.exe" : "turbotokens";
+            requireValue(Array.isArray(evidence.members) && JSON.stringify([...evidence.members].sort()) === JSON.stringify(["LICENSE", "README.md", binary].sort()), "archive members differ");
+            requireValue(evidence.pricing?.sha256 === expected.pricing.sha256 &&
+              evidence.pricing?.source_commit === expected.pricing.source_commit &&
+              evidence.pricing?.url === expected.pricing.url &&
+              evidence.pricing?.bytes === expected.pricing.bytes, "pricing input differs");
+            return evidence;
+          }
+          const sha256 = value => createHash("sha256").update(value).digest("hex");
+          const api = route => JSON.parse(execFileSync("gh", ["api", route], {encoding:"utf8", maxBuffer:8*1024*1024}));
+          function requireRun(id, head) {
+            const run = api("repos/" + REPO + "/actions/runs/" + id);
+            assert.equal(run.head_sha, head);
+            assert.equal(run.status, "completed");
+            assert.equal(run.conclusion, "success");
+            return {id, head_sha:head, url:run.html_url};
+          }
+          const runs = {
+            bundle:requireRun(34263301850, "e3275a5c86c72ae49716856003ca49d21f597161"),
+            native:requireRun(34262506128, "7312a76dae0410c401c12f690e2b144a5816c4fd"),
+            full_tests:requireRun(34261081776, "76d8df1f20d9eca3d66b45700f03c10a0341861c"),
+            source:requireRun(34262179799, SOURCE),
+            audit:requireRun(34242692330, "c4960f34a14a945e5e4c5238b29842c76070e9e4"),
+            npm_runtime:requireRun(34257459736, "d54c9bfb1b580660e47fce78f5d653841beada88"),
+            soak:requireRun(34234896673, "7ed32daf71d91d0ea4fb136ba66b09a083e8171d"),
+          };
+          const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "turbotokens-release-verify-"));
+          function unpack(artifact, filenames) {
+            assert.equal(artifact.expired, false);
+            assert(Number.isSafeInteger(artifact.id) && artifact.id > 0);
+            const zip = execFileSync("gh", ["api", "repos/" + REPO + "/actions/artifacts/" + artifact.id + "/zip"], {maxBuffer:32*1024*1024});
+            assert.equal(zip.length, artifact.size_in_bytes);
+            assert.equal("sha256:" + sha256(zip), artifact.digest);
+            const file = path.join(temporary, artifact.id + ".zip");
+            fs.writeFileSync(file, zip);
+            const names = execFileSync("unzip", ["-Z1", file], {encoding:"utf8"}).trim().split(/\r?\n/).sort();
+            assert.deepEqual(names, [...filenames].sort());
+            const result = {};
+            for (const name of filenames) {
+              assert(/^[A-Za-z0-9_.-]+$/.test(name) && name !== "." && name !== "..");
+              result[name] = execFileSync("unzip", ["-p", file, name], {maxBuffer:32*1024*1024});
+            }
+            return result;
+          }
+          try {
+            const filenames = ARCHIVES.map(item => item.asset).concat(["SHA256SUMS", "BUILD_PROVENANCE.json"]);
+            const files = unpack(BUNDLE, filenames);
+            const provenance = JSON.parse(files["BUILD_PROVENANCE.json"]);
+            assert.equal(provenance.source_sha, SOURCE);
+            assert.equal(provenance.version, "1.1.3");
+            assert.equal(provenance.assembler_run_id, runs.bundle.id);
+            assert.deepEqual(provenance.archives, ARCHIVES);
+            assert.deepEqual(provenance.svg_fix, {pull_request:19, source_sha:"fe77dabc24f89019cdbebf362fe46ddb27b9b5fb", baseline_run:34261013151, validation_run:34260785813});
+            assert.equal(provenance.native_smoke_checks.length, ARCHIVES.length);
+            for (const expected of ARCHIVES) {
+              const matches = provenance.native_smoke_checks.filter(item => item.target === expected.target);
+              assert.equal(matches.length, 1);
+              assert.equal(matches[0].binary_sha256, expected.binary_sha256);
+              assert(/^[0-9a-f]{64}$/.test(matches[0].evidence_sha256));
+              assert.deepEqual(matches[0].checks, [
+                {case:"markup", xml_parsed:true, json_name_preserved:true},
+                {case:"controls", xml_parsed:true, json_name_preserved:true},
+                {case:"unicode", xml_parsed:true, json_name_preserved:true}
+              ]);
+            }
+            assert.deepEqual(provenance.inputs.pricing, PRICING);
+            assert.equal(provenance.lockfile_sha256, sha256(fs.readFileSync("rust/Cargo.lock")));
+            const counts = {...provenance.full_tests}; delete counts.log_sha256;
+            assert.deepEqual(counts, {passed:772, failed:0, ignored:3, measured:0, filtered:0, suites:54});
+            assert(/^[0-9a-f]{64}$/.test(provenance.full_tests.log_sha256));
+            assert.equal(provenance.dependency_audit.vulnerabilities.count, 0);
+            assert.equal(provenance.dependency_audit.vulnerabilities.found, false);
+            assert.deepEqual(provenance.dependency_audit.warnings, {});
+            assert.deepEqual(provenance.dependency_audit.settings.ignore, []);
+            assert.equal(provenance.dependency_audit.lockfile["dependency-count"], 147);
+            const sums = [...ARCHIVES].sort((a,b) => a.asset.localeCompare(b.asset)).map(item => item.archive_sha256 + "  " + item.asset).join("\n") + "\n";
+            assert.equal(files.SHA256SUMS.toString(), sums);
+            for (const expected of ARCHIVES) {
+              validateArchiveEvidence(expected, {sourceSha:SOURCE, target:expected.target, asset:expected.asset, pricing:PRICING});
+              assert.equal(files[expected.asset].length, expected.archive_bytes);
+              assert.equal(sha256(files[expected.asset]), expected.archive_sha256);
+            }
+            const harness = fs.readFileSync("rust/bench/stress-claude.py", "utf8").replace(/\r\n/g, "\n");
+            const harnessHashes = {lf:sha256(harness), crlf:sha256(harness.replace(/\n/g, "\r\n"))};
+            assert.deepEqual(provenance.reviewed_harness_hashes, harnessHashes);
+            assert.deepEqual(provenance.soak_requirement, {
+              run_id:runs.soak.id, head_sha:runs.soak.head_sha,
+              source_sha:"822b236b3900294276bac9c5d19ba28b4c0b2530",
+              duration_seconds:18000, report_cache_limit:256
+            });
+            const jobs = api("repos/" + REPO + "/actions/runs/" + runs.soak.id + "/jobs?per_page=100").jobs;
+            assert.equal(jobs.length, 6);
+            assert(jobs.every(job => job.status === "completed" && job.conclusion === "success"));
+            const artifacts = api("repos/" + REPO + "/actions/runs/" + runs.soak.id + "/artifacts?per_page=100").artifacts;
+            const soaks = [];
+            for (const expected of ARCHIVES) {
+              const matchingJobs = jobs.filter(job => job.name.includes(expected.target));
+              assert.equal(matchingJobs.length, 1);
+              const step = matchingJobs[0].steps.find(step => step.name === "Run five-hour mutation check");
+              assert(step && step.conclusion === "success");
+              assert((Date.parse(step.completed_at) - Date.parse(step.started_at)) / 1000 >= 17999);
+              const matches = artifacts.filter(item => item.name === "extended-soak-" + expected.target);
+              assert.equal(matches.length, 1);
+              const artifact = matches[0];
+              assert.equal(artifact.workflow_run.id, runs.soak.id);
+              assert.equal(artifact.workflow_run.head_sha, runs.soak.head_sha);
+              const filename = "extended-soak-" + expected.target + ".json";
+              const report = JSON.parse(unpack(artifact, [filename])[filename]);
+              const acceptedHashes = expected.target.includes("windows") ? Object.values(harnessHashes) : [harnessHashes.lf];
+              const summary = validateSoakReport(report, {target:expected.target, harnessHashes:acceptedHashes});
+              soaks.push({summary, report, job_id:matchingJobs[0].id, artifact:{id:artifact.id, name:artifact.name, digest:artifact.digest, size_in_bytes:artifact.size_in_bytes}});
+              console.log(JSON.stringify(summary));
+            }
+            const validation = {
+              status:"passed", source_sha:SOURCE, version:"1.1.3", verified_at:new Date().toISOString(),
+              verification_run_id:Number(process.env.GITHUB_RUN_ID), runs,
+              archive_bundle:{id:BUNDLE.id, digest:BUNDLE.digest, size_in_bytes:BUNDLE.size_in_bytes},
+              soaks,
+              scope:"The five-hour runs cover synthetic Claude daily reports, recorded costs, and byte-identical cold, warm, and uncached output from unchanged report/cache code. Only SVG label escaping and its unit tests differ from that soak source. The freshly packaged binaries use the separately frozen pricing snapshot and passed their own native smoke checks; their binary hashes differ from the soak binaries."
+            };
+            const output = path.resolve("approved-release");
+            fs.mkdirSync(output, {recursive:true});
+            assert.equal(fs.readdirSync(output).length, 0);
+            for (const name of filenames) fs.writeFileSync(path.join(output, name), files[name]);
+            fs.writeFileSync(path.join(output, "VALIDATION.json"), JSON.stringify(validation, null, 2) + "\n");
+            const totalSteps = soaks.reduce((sum, item) => sum + item.summary.steps_completed, 0);
+            const totalChecks = soaks.reduce((sum, item) => sum + item.summary.checkpoints_passed, 0);
+            const notes = [
+              "## Safer installs and more reliable usage reports",
+              "",
+              "- Native binaries for macOS, Windows, and Linux, on both x64 and ARM64. Linux builds are static musl binaries.",
+              "- Fixes cached reports after log rewrites, truncation, deletion, and restoration; limits each report cache kind to 256 files.",
+              "- Avoids crashes when an active log is truncated, escapes terminal control characters in table output, and tightens local cache and IPC permissions.",
+              "- Adds structured usage events for integrations, plus clearer installation and ccusage migration guides.",
+              "- Keeps exported SVG cards valid when a model or project name contains XML control characters.",
+              "",
+              "## Validation",
+              "",
+              "- [Full workspace tests](https://github.com/" + REPO + "/actions/runs/" + runs.full_tests.id + "): 772 passed, 0 failed, 3 intentionally ignored; no filtered tests.",
+              "- [Native checks](https://github.com/" + REPO + "/actions/runs/" + runs.native.id + "): all six targets passed with one pinned pricing snapshot.",
+              "- [Five-hour stress tests](https://github.com/" + REPO + "/actions/runs/" + runs.soak.id + "): six targets, " + totalSteps.toLocaleString("en-US") + " synthetic log mutations and " + totalChecks.toLocaleString("en-US") + " cached/warm/uncached comparisons in total.",
+              "- [RustSec audit](https://github.com/" + REPO + "/actions/runs/" + runs.audit.id + "): 147 dependencies checked, no known vulnerabilities or warnings in the recorded database snapshot.",
+              "",
+              "The stress tests cover unchanged recorded-cost Claude daily report/cache code. Only SVG label escaping and its tests differ from that soak source. The release binaries have a separately pinned pricing snapshot and their own native smoke checks. See the attached BUILD_PROVENANCE.json and VALIDATION.json for hashes and scope.",
+              "",
+              "## Install",
+              "",
+              "Choose the archive for your operating system and CPU. [macOS, Windows, and Linux instructions](https://github.com/" + REPO + "/blob/" + SOURCE + "/docs/installation.md) include verification, PATH setup, and your first report.",
+              "",
+              "The native downloads here are v1.1.3. npm and Homebrew remain at v1.1.2 until their separate updates are published.",
+              "",
+              "[Migrating from ccusage](https://github.com/" + REPO + "/blob/" + SOURCE + "/docs/migrating-from-ccusage.md) · [Show your usage cards](https://github.com/" + REPO + "/discussions/6)",
+              ""
+            ].join("\n");
+            fs.writeFileSync(path.join(output, "RELEASE_NOTES.md"), notes);
+            console.log(JSON.stringify({status:"passed", source_sha:SOURCE, targets:soaks.length, mutations:totalSteps, comparisons:totalChecks}));
+          } finally {
+            fs.rmSync(temporary, {recursive:true, force:true});
+          }
+          
+          NODE
+      - name: Independently verify the native archive contents
+        shell: bash
+        run: |
+          python3 <<'PY'
+          import hashlib, json, stat, tarfile, zipfile
+          from pathlib import Path
+          root = Path("approved-release")
+          provenance = json.loads((root / "BUILD_PROVENANCE.json").read_text())
+          expected_source = "27ceda8944e85429ddd8e62e650c7994459a9568"
+          assert provenance["source_sha"] == expected_source
+          license_text = Path("LICENSE").read_text().replace("\r\n", "\n")
+          for item in provenance["archives"]:
+              archive_path = root / item["asset"]
+              binary = "turbotokens.exe" if item["asset"].endswith(".zip") else "turbotokens"
+              expected = {binary, "README.md", "LICENSE"}
+              assert archive_path.stat().st_size == item["archive_bytes"]
+              assert hashlib.sha256(archive_path.read_bytes()).hexdigest() == item["archive_sha256"]
+              if item["asset"].endswith(".zip"):
+                  with zipfile.ZipFile(archive_path) as archive:
+                      entries = archive.infolist()
+                      assert len(entries) == 3 and {entry.filename for entry in entries} == expected
+                      assert all(not entry.is_dir() and entry.file_size <= 64 * 1024 * 1024 for entry in entries)
+                      assert all(stat.S_IFMT(entry.external_attr >> 16) in (0, stat.S_IFREG) for entry in entries)
+                      contents = {name: archive.read(name) for name in expected}
+              else:
+                  with tarfile.open(archive_path, "r:gz") as archive:
+                      entries = archive.getmembers()
+                      assert len(entries) == 3 and {entry.name for entry in entries} == expected
+                      assert all(entry.isfile() and entry.size <= 64 * 1024 * 1024 for entry in entries)
+                      assert archive.getmember(binary).mode & 0o111
+                      contents = {name: archive.extractfile(name).read() for name in expected}
+              assert hashlib.sha256(contents[binary]).hexdigest() == item["binary_sha256"]
+              assert contents["LICENSE"].decode("utf-8-sig").replace("\r\n", "\n") == license_text
+              readme = contents["README.md"].decode("utf-8-sig")
+              assert "@REVISION@" not in readme
+              for guide in ["README.md", "docs/installation.md", "docs/migrating-from-ccusage.md", "docs/usage.md"]:
+                  assert "https://github.com/maxmoneycash/turbotokens/blob/" + expected_source + "/" + guide in readme
+              print("Archive contents verified:", item["asset"])
+          files = {path.name for path in root.iterdir()}
+          assert files == {item["asset"] for item in provenance["archives"]} | {"SHA256SUMS", "BUILD_PROVENANCE.json", "VALIDATION.json", "RELEASE_NOTES.md"}
+          print("Bundle verified:", len(provenance["archives"]), "native archives")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approved-native-release-v1.1.3
+          path: approved-release/*
+          if-no-files-found: error
+          retention-days: 90
