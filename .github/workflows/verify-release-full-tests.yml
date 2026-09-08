@@ -1,0 +1,55 @@
+name: Full workspace tests for native v1.1.3
+
+on:
+  push:
+    branches: [validation/full-tests-v1.1.3-r2]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fe77dabc24f89019cdbebf362fe46ddb27b9b5fb
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-release-inputs
+          run-id: 34244597259
+          github-token: ${{ github.token }}
+          path: .release-inputs
+      - name: Verify and select the release pricing snapshot
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          snapshot = Path(".release-inputs/model_prices_and_context_window.json")
+          metadata = json.loads(Path(".release-inputs/release-inputs.json").read_text())
+          expected = "f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202"
+          assert metadata["source_sha"] == "c5a71c3e01215601901fc4c38f4cb2133674b542"
+          assert metadata["pricing"]["sha256"] == expected
+          assert hashlib.sha256(snapshot.read_bytes()).hexdigest() == expected
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as environment:
+              environment.write("TURBOTOKENS_PRICING_JSON_PATH=" + str(snapshot.resolve()) + "\n")
+          print(json.dumps(metadata, sort_keys=True))
+          PY
+      - name: Run all workspace tests without pricing skips
+        working-directory: rust
+        shell: bash
+        run: cargo test --locked --workspace --features fetch-litellm-pricing 2>&1 | tee ../full-workspace-tests.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-workspace-tests-v1.1.3
+          path: full-workspace-tests.log
+          if-no-files-found: warn
