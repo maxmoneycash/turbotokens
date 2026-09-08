@@ -1,0 +1,58 @@
+name: Rust dependency audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - rust/Cargo.lock
+      - rust/**/Cargo.toml
+      - .cargo/audit.toml
+      - .github/workflows/dependency-audit.yml
+  pull_request:
+    paths:
+      - rust/Cargo.lock
+      - rust/**/Cargo.toml
+      - .cargo/audit.toml
+      - .github/workflows/dependency-audit.yml
+  schedule:
+    - cron: '28 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install the pinned auditor
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Check the workspace lockfile against current advisories
+        run: |
+          cargo audit --version
+          cargo audit --file rust/Cargo.lock --db "$RUNNER_TEMP/turbotokens-advisory-db" --json | tee rustsec-report.json
+      - name: Record the checked inputs
+        if: always()
+        run: |
+          git rev-parse HEAD > source-revision.txt
+          sha256sum rust/Cargo.lock > lockfile-sha256.txt
+          git -C "$RUNNER_TEMP/turbotokens-advisory-db" rev-parse HEAD > advisory-db-revision.txt
+      - name: Keep the audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-dependency-audit
+          path: |
+            rustsec-report.json
+            source-revision.txt
+            lockfile-sha256.txt
+            advisory-db-revision.txt
+          if-no-files-found: error
