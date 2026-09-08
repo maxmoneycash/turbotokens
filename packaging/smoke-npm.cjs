@@ -29,6 +29,17 @@ try {
   assert(!packed.files.some(file => file.path.startsWith('vendor/')));
   run(npm, ['install', '--global=false', '--prefix', temporary, '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)]);
   const executable = path.join(temporary, 'node_modules', '.bin', process.platform === 'win32' ? 'turbotokens.cmd' : 'turbotokens');
+  if (process.platform === 'win32') {
+    const binDirectory = path.dirname(executable);
+    console.log('Windows npm install layout:', JSON.stringify({
+      root: fs.readdirSync(temporary),
+      bin: fs.existsSync(binDirectory) ? fs.readdirSync(binDirectory) : null,
+      shim: fs.existsSync(executable) ? fs.readFileSync(executable, 'utf8') : null,
+      globalShim: fs.existsSync(path.join(temporary, 'turbotokens.cmd'))
+        ? fs.readFileSync(path.join(temporary, 'turbotokens.cmd'), 'utf8') : null,
+      configuredGlobal: run(npm, ['config', 'get', 'global']).trim(),
+    }));
+  }
   const version = require('../npm/package.json').version;
   assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
   // The shim downloads the published GitHub release, not this checkout.
