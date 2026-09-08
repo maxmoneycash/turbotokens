@@ -1,0 +1,56 @@
+name: npm runtime compatibility
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - npm/**
+      - packaging/smoke-npm.cjs
+      - .github/workflows/npm-runtime-compatibility.yml
+  pull_request:
+    paths:
+      - npm/**
+      - packaging/smoke-npm.cjs
+      - .github/workflows/npm-runtime-compatibility.yml
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15-intel, windows-latest]
+        node: ['14.14.0', '24.5.0']
+        include:
+          - os: windows-11-arm
+            node: '24.5.0'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install the test runner
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Save the test runner path
+        run: node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "TURBOTOKENS_TEST_RUNNER_NODE=" + process.execPath + "\n")'
+      - name: Install the runtime under test
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Save the runtime path and report versions
+        run: |
+          node -e 'require("fs").appendFileSync(process.env.GITHUB_ENV, "TURBOTOKENS_TEST_NODE=" + process.execPath + "\n")'
+          node --version
+          npm --version
+      - name: Check arguments, streams, exit status, and shutdown
+        run: '"$TURBOTOKENS_TEST_RUNNER_NODE" --test npm/test/launcher.test.cjs'
+      - name: Check a packed install and checksum rejection
+        run: '"$TURBOTOKENS_TEST_RUNNER_NODE" packaging/smoke-npm.cjs'

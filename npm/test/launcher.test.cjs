@@ -7,6 +7,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { test } = require("node:test");
+const runtime = process.env.TURBOTOKENS_TEST_NODE || process.execPath;
 
 function fixture(t, installBinary = true) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "turbotokens launcher "));
@@ -19,16 +20,16 @@ function fixture(t, installBinary = true) {
   // Use Node as a controllable native child without requiring a Rust build.
   if (installBinary) {
     try {
-      fs.linkSync(process.execPath, binary);
+      fs.linkSync(runtime, binary);
     } catch {
-      fs.copyFileSync(process.execPath, binary);
+      fs.copyFileSync(runtime, binary);
     }
   }
   return { directory, launcher, binary };
 }
 
 function run(launcher, args, options = {}) {
-  return spawnSync(process.execPath, [launcher, ...args], {
+  return spawnSync(runtime, [launcher, ...args], {
     encoding: "utf8", timeout: 15000, ...options,
   });
 }
@@ -91,7 +92,7 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
       process.stdout.write(String(process.pid));
       setInterval(() => {}, 1000);
     `;
-    const wrapper = spawn(process.execPath, [launcher, "-e", code, cleanupFile, signal], {
+    const wrapper = spawn(runtime, [launcher, "-e", code, cleanupFile, signal], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let childPid;

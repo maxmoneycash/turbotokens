@@ -13,6 +13,7 @@
 - Accept whitespace-formatted Claude and Codex JSON records without changing report schemas. Reject unreadable or malformed explicit configuration before printing a report.
 - Isolate daemon IPC under the user's home directory and verify source, timezone, and cost context before reuse. Stop daemons through their verified protocol.
 - Escape log-supplied terminal controls and give metrics responses an absolute write deadline.
+- Fix npm installation from Git Bash on Windows by selecting the native ZIP extractor even when another `tar` appears first on PATH.
 - Verify shell-install checksums and staged executables before replacing an install. Forward npm launcher shutdown signals and wait for the native child.
 - Ship static Linux binaries checked on Ubuntu 22.04, Debian 12, and Alpine 3.22, for x64 and ARM64. All six native release targets now check report counts, cache invalidation, live rewrites, and deterministic log mutations.
 - Add clearer macOS, Windows, and Linux installation instructions, a ccusage migration guide, and standalone documentation inside release archives.

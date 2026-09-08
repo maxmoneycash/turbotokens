@@ -57,7 +57,12 @@ async function install() {
     const binary = process.platform === "win32" ? "turbotokens.exe" : "turbotokens";
     const destination = path.join(__dirname, "vendor");
     fs.mkdirSync(destination, { recursive: true });
-    execFileSync("tar", [extension === "zip" ? "-xf" : "-xzf", archive, "-C", temporary, binary], { stdio: "inherit" });
+    // Git Bash may put GNU tar first on PATH; it treats C: as a remote host
+    // and does not handle the Windows ZIP asset. Use Windows' native bsdtar.
+    const extractor = process.platform === "win32"
+      ? path.join(process.env.SystemRoot || process.env.WINDIR || "C:\\Windows", "System32", "tar.exe")
+      : "tar";
+    execFileSync(extractor, [extension === "zip" ? "-xf" : "-xzf", archive, "-C", temporary, binary], { stdio: "inherit" });
     if (process.platform !== "win32") fs.chmodSync(path.join(temporary, binary), 0o755);
     fs.copyFileSync(path.join(temporary, binary), path.join(destination, binary));
     console.log(`turbotokens: installed v${pkg.version}`);

@@ -45,6 +45,10 @@ the executable. If it reports a missing binary, reinstall with
 `npm install -g turbotokens --ignore-scripts=false`. The installer also needs
 `tar.exe`; if that command is unavailable, use the native ZIP below.
 
+If a v1.1.2 npm install reports `tar: Cannot connect to C`, use the native ZIP
+below. Git Bash or another PATH override can select an incompatible `tar`.
+The v1.1.3 installer selects Windows' native extractor explicitly.
+
 If PowerShell reports that `npm.ps1` or `turbotokens.ps1` cannot run because scripts
 are disabled, use npm's Command Prompt shims directly:
 
