@@ -26,6 +26,12 @@ jobs:
       # the fuzzy-match test breaks when LiteLLM adds a model that a fuzzy
       # pattern now legitimately matches (e.g. claude-opus-5).
       - run: cargo test --workspace --features fetch-litellm-pricing -- --skip pricing::tests::embedded --skip pricing::tests::fuzzy_match_allows_date_like_suffixes_for_known_numeric_model_versions
+      - name: Check fish completion behavior
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends fish
+          fish --version
+          cargo test -p turbotokens --features fetch-litellm-pricing commands::completions::tests::fish_completes_empty_and_partial_contexts_without_errors -- --ignored
       - run: cargo build --release --bin turbotokens --features fetch-litellm-pricing
 
   packaging:

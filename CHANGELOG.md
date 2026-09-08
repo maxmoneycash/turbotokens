@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4 · 2026-09-08
+
+- Fix fish completions printing missing-argument errors at the root and Claude command prompts.
+- Keep partial Claude commands and flags in the right completion context; `turbotokens claude da` completes to `daily`, and `claude daily --mo` offers `--mode`.
+- Add a real-fish regression check to CI. Usage report and cache behavior are unchanged.
+
 ## 1.1.3 · 2026-09-08
 
 - Add `turbotokens stream` for a newline-delimited JSON feed of live token events (`live --json` is the same stream). Each usage event includes `totalTokens`.
