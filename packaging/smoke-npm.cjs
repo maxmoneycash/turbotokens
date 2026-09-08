@@ -53,6 +53,32 @@ try {
   assert.equal(run(globalExecutable, ['--version']).trim(), `turbotokens ${version}`);
   console.log('Local and global npm launchers passed');
   const installed = path.join(temporary, 'node_modules', 'turbotokens');
+  if (process.platform === 'win32') {
+    const nativeExtractor = path.join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'tar.exe');
+    assert(fs.existsSync(nativeExtractor));
+    const fallbackEnvironment = { ...environment };
+    const pathKey = Object.keys(fallbackEnvironment).find(key => key.toLowerCase() === 'path') || 'Path';
+    fallbackEnvironment[pathKey] = path.dirname(nativeExtractor) + path.delimiter + fallbackEnvironment[pathKey];
+    // Simulate just the missing extractor in this child. Changing SystemRoot
+    // also breaks DNS in Node 14 and would test an unrelated Windows failure.
+    const preload = path.join(temporary, 'missing-native-extractor.cjs');
+    fs.writeFileSync(preload, [
+      'const assert = require("assert");',
+      'const fs = require("fs");',
+      'const child = require("child_process");',
+      'const native = ' + JSON.stringify(nativeExtractor.toLowerCase()) + ';',
+      'const exists = fs.existsSync;',
+      'fs.existsSync = file => typeof file === "string" && file.toLowerCase() === native ? false : exists(file);',
+      'const execute = child.execFileSync;',
+      'let extracted = false;',
+      'child.execFileSync = (command, args, options) => { assert.equal(command, "tar"); extracted = true; return execute(command, args, options); };',
+      'process.on("exit", () => assert(extracted, "installer did not invoke the PATH extractor"));',
+    ].join('\n') + '\n');
+    fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
+    run(runtime, ['--require', preload, path.join(installed, 'install.js')], { env: fallbackEnvironment });
+    assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
+    console.log('Windows PATH fallback passed with a missing native extractor');
+  }
   fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
   assert.throws(() => run(executable, ['--version']), error => error.status === 1 && /binary is missing/.test(error.stderr));
   // A corrupt checksum must fail before a binary is installed.
