@@ -1,0 +1,79 @@
+name: Verify documented Homebrew install
+
+on:
+  push:
+    branches: [validation/homebrew-install-20260908]
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 27ff57e6dca274adbfb4c6787a30fe0037f6b6ee
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@6373c73b318da78d7a3457597e6cc3b6526cbd59
+        with:
+          stable: true
+      - name: Install using the README command
+        run: |
+          brew --version
+          brew install maxmoneycash/tap/turbotokens
+          turbotokens --version
+          brew test maxmoneycash/tap/turbotokens
+      - name: Check a synthetic first report
+        run: |
+          python3 <<'PY'
+          import hashlib, importlib.util, json, platform, subprocess, tempfile
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location("native_smoke", "packaging/smoke-native.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          prefix = subprocess.check_output(["brew", "--prefix", "maxmoneycash/tap/turbotokens"], text=True).strip()
+          binary = Path(prefix) / "bin" / "turbotokens"
+          version = subprocess.check_output([str(binary), "--version"], text=True).strip()
+          assert version == "turbotokens 1.1.2", version
+          with tempfile.TemporaryDirectory(prefix="turbotokens-brew-") as temporary:
+              root = Path(temporary)
+              env = module.isolated_environment(root)
+              source = Path(env["CLAUDE_CONFIG_DIR"]) / "projects" / "brew-check" / "session.jsonl"
+              source.parent.mkdir(parents=True)
+              counts = (100, 200, 30, 40)
+              source.write_bytes(module.record(counts))
+              config = root / "config" / "neutral.json"
+              config.write_text("{}\n")
+              command = [str(binary), "claude", "daily", "--json", "--offline", "--mode", "display", "--timezone", "UTC", "--config", str(config)]
+              reports = {}
+              for name, cache in [("cached", "on"), ("warm", "on"), ("uncached", "off")]:
+                  child = subprocess.run(command, env=dict(env, TURBOTOKENS_CACHE=cache), cwd=env["HOME"], capture_output=True, check=True, timeout=30)
+                  module.validate_report(child.stdout, counts)
+                  reports[name] = child.stdout
+              assert len(set(reports.values())) == 1
+              evidence = {
+                  "status":"passed", "platform":platform.platform(), "version":version,
+                  "binary_sha256":hashlib.sha256(binary.read_bytes()).hexdigest(),
+                  "brew_version":subprocess.check_output(["brew", "--version"], text=True).strip(),
+                  "tap_sha":subprocess.check_output(["git", "-C", subprocess.check_output(["brew", "--repo", "maxmoneycash/tap"], text=True).strip(), "rev-parse", "HEAD"], text=True).strip(),
+                  "byte_identical":True, "report":json.loads(reports["cached"]),
+              }
+              Path("homebrew-install.json").write_text(json.dumps(evidence, indent=2) + "\n")
+              print(json.dumps(evidence))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: homebrew-install-${{ matrix.os }}
+          path: homebrew-install.json
+          if-no-files-found: warn
