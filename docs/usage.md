@@ -2,6 +2,8 @@
 
 `turbotokens` defaults to a daily report across detected agents. Add an agent name to read only that source, such as `turbotokens claude daily` or `turbotokens codex session`.
 
+Moving an existing app or script? See [migrating from ccusage](migrating-from-ccusage.md) for command mappings, JSON checks, and a subprocess example.
+
 ## Reports
 
 | Command | Grouping or purpose |
@@ -76,8 +78,8 @@ Stdout is newline-delimited JSON. Each usage line looks like:
 # Follow new events as they arrive
 turbotokens stream | jq -c '{time: .timestamp, model, tokens: .totalTokens, cost}'
 
-# Running token total
-turbotokens stream | jq -s 'map(.totalTokens) | add'
+# Running token total, emitted after each event
+turbotokens stream | jq --unbuffered -n 'foreach inputs as $event (0; . + $event.totalTokens; .)'
 ```
 
 On a TTY, `turbotokens live` is the dashboard. Piped or `--json` / `stream` is the machine feed.

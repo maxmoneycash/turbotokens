@@ -23,6 +23,7 @@ If turbotokens saved you from a surprise bill, a ⭐ helps other developers find
   <a href="#see-the-speed">Benchmarks</a> ·
   <a href="#watch-your-agents-work">Live dashboard</a> ·
   <a href="#your-usage-worth-sharing">Usage cards</a> ·
+  <a href="docs/migrating-from-ccusage.md">Migrate from ccusage</a> ·
   <a href="docs/usage.md">Usage guide</a>
 </p>
 
@@ -283,7 +284,7 @@ Choose turbotokens if quick repeated reports and scriptable live monitoring fit 
 
 ### What is a faster alternative to ccusage?
 
-turbotokens began as a fork of ccusage and keeps its report formats compatible while adding a parse cache, so repeat Claude daily reports run in milliseconds instead of seconds. On a 3.63 GB benchmark history, a cached daily report took 13 ms versus 3.65 s for ccusage on the same logs. It also adds a live dashboard, budget alerts, Prometheus metrics, and SVG usage cards. Details: [benchmarks](#see-the-speed).
+turbotokens began as a fork of ccusage and adds a parse cache for repeated Claude reports. On a 3.63 GB benchmark history, a cached daily report took 13 ms versus 3.65 s for ccusage on the same logs. It also adds a live dashboard, budget alerts, Prometheus metrics, and SVG usage cards. The [migration guide](docs/migrating-from-ccusage.md) covers command mappings, JSON differences, and reproducible compatibility checks. Details: [benchmarks](#see-the-speed).
 
 ### How do I track Claude Code costs in real time?
 
@@ -291,7 +292,7 @@ Run `turbotokens live`. It follows Claude Code's local logs as they change and s
 
 ### Can I check my AI coding usage without an account or API key?
 
-Yes. turbotokens reads the usage logs your agents already write to your machine. Local reports, the live dashboard, heatmaps, and wrapped cards all work fully offline — no account, no API key, no upload. Costs are estimated from an embedded pricing snapshot, which you can override with your own pricing file.
+Yes. turbotokens reads the usage logs your agents already write to your machine. Use `--offline` where supported to use embedded or cached pricing without a network lookup. Local reports need no account, API key, or transcript upload. Costs are estimates; see [data, costs, and privacy](#data-costs-and-privacy).
 
 ### Which agents does turbotokens support?
 
@@ -316,7 +317,7 @@ Eighteen, including Claude Code, Codex, Grok Build, Gemini CLI, GitHub Copilot, 
 
 **Can I use it offline?** Local reports support offline pricing where the command exposes `--offline`. Installation, refreshed pricing, subscription limits, and configured webhooks need their respective network services.
 
-**Can I migrate from ccusage?** Many report commands will feel familiar. You can render an existing JSON export with `turbotokens import report.json`. Check `--help` before switching an automated workflow; options and schemas can differ by command and source.
+**Can I migrate from ccusage?** Start with the [migration guide](docs/migrating-from-ccusage.md): choose the same agent, preserve filters and timezone, and compare the fields your app reads. It includes a subprocess example and an executable compatibility check. You can also render an existing JSON export with `turbotokens import report.json`.
 
 **What if I find a counting bug?** [Open a bug report](https://github.com/maxmoneycash/turbotokens/issues/new?template=bug_report.yml) with the command, version, `doctor` output, and a small sanitized fixture. Reproducible counting bugs are especially valuable.
 
