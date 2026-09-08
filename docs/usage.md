@@ -47,7 +47,7 @@ Press Ctrl-C to stop.
 
 ### Stream token events
 
-The `stream` command and the `agent` and `totalTokens` event fields require **v1.1.3 or newer**. In v1.1.2, use `live --json` for the earlier event format. See [installation](installation.md) for the currently published version.
+The `stream` command and the `agent` and `totalTokens` usage-event fields require **v1.1.3 or newer**. In v1.1.2, use `live --json` for the earlier event format. See [installation](installation.md) for the currently published version.
 
 For scripts, pipes, and other tools, read a newline-delimited JSON feed:
 
