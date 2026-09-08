@@ -56,6 +56,19 @@ TURBOTOKENS_VERSION=v1.1.3 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh i
 /tmp/turbotokens-install/turbotokens --version
 ```
 
+## Reproducing release pricing
+
+Each release workflow resolves one LiteLLM commit and downloads its pricing
+snapshot once. Every native target verifies the same bytes before Cargo runs.
+The release's `release-inputs.json` records the source revision, pricing commit,
+immutable URL, byte count, and SHA-256. Download that JSON and its pricing URL
+to reproduce the embedded input with `TURBOTOKENS_PRICING_JSON_PATH`.
+
+For a manual workflow run, set `pricing_commit` to the full LiteLLM commit SHA
+from a previous release. Omitting it resolves the current LiteLLM revision once;
+individual platform builds do not fetch a newer copy independently. This pins
+pricing input, not the entire toolchain or a bit-for-bit reproducible binary.
+
 ## Longer native checks
 
 The release workflow tests synthetic reports and live log changes on all six

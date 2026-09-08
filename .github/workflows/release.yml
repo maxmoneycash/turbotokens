@@ -10,12 +10,18 @@ on:
         type: choice
         default: "0"
         options: ["0", "1800", "3600", "18000"]
+      pricing_commit:
+        description: "Optional full LiteLLM commit SHA (resolved once when omitted)"
+        type: string
+        default: ""
   pull_request:
     paths:
       - .github/workflows/release.yml
       - packaging/smoke-linux.py
       - packaging/smoke-native.py
       - packaging/RELEASE_README.md
+      - packaging/release-pricing.py
+      - packaging/tests/test_release_pricing.py
       - rust/**
       - rust-toolchain.toml
       - .cargo/**
@@ -24,7 +30,27 @@ permissions:
   contents: read
 
 jobs:
+  pricing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check release input verification
+        run: python3 -m unittest discover -s packaging/tests -p test_release_pricing.py -v
+      - name: Freeze one pricing snapshot for all native targets
+        env:
+          PRICING_COMMIT: ${{ inputs.pricing_commit }}
+        run: python3 packaging/release-pricing.py prepare --directory release-inputs --source-sha "$GITHUB_SHA" --commit "$PRICING_COMMIT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-inputs
+          path: release-inputs/*
+          if-no-files-found: error
+
   build:
+    needs: pricing
     timeout-minutes: 330
     strategy:
       fail-fast: false
@@ -51,6 +77,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-inputs
+          path: release-inputs
+      - name: Verify the shared pricing snapshot before building
+        shell: bash
+        run: |
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then python_command=python; fi
+          "$python_command" packaging/release-pricing.py verify --directory release-inputs --source-sha "$GITHUB_SHA" --github-env "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
       # rust-toolchain.toml selects the compiler Cargo will actually use.
       - name: Install target for the repository toolchain
@@ -196,4 +234,5 @@ jobs:
             artifacts/turbotokens-*.tar.gz
             artifacts/turbotokens-*.zip
             artifacts/SHA256SUMS
+            artifacts/release-inputs.json
           fail_on_unmatched_files: true
