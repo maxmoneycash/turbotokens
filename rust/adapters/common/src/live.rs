@@ -24,6 +24,7 @@ const MAX_MODELS: usize = 5;
 const MAX_SESSIONS: usize = 8;
 const MAX_RECENT_EVENTS: usize = 10;
 const DASHBOARD_CLOCK_TICK: Duration = Duration::from_secs(1);
+const METRICS_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// One accepted usage line, ready to serialize or render.
 #[derive(Debug, Clone, PartialEq)]
@@ -557,7 +558,8 @@ fn escape_label_value(value: &str) -> String {
 }
 
 /// Minimal HTTP/1.1 endpoint serving the latest Prometheus snapshot: one
-/// thread, one 200 response per connection, then close.
+/// thread, one 200 response per connection, then close. A stalled reader must
+/// not hold the only serving thread indefinitely.
 pub struct MetricsServer {
     body: Arc<Mutex<String>>,
 }
@@ -572,6 +574,12 @@ impl MetricsServer {
                 let Ok(mut stream) = connection else {
                     continue;
                 };
+                if stream
+                    .set_write_timeout(Some(METRICS_WRITE_TIMEOUT))
+                    .is_err()
+                {
+                    continue;
+                }
                 let payload = lock_body(&shared).clone();
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
@@ -921,6 +929,30 @@ mod tests {
             .unwrap()
             .read_to_string(&mut response)
             .unwrap();
+        assert!(response.contains("turbotokens_files_watched 9\n"));
+    }
+
+    #[test]
+    fn a_stalled_metrics_reader_does_not_block_later_scrapes() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+        let server = MetricsServer::start(&addr.to_string()).unwrap();
+        server.update("x".repeat(32 * 1024 * 1024));
+
+        let mut stalled = std::net::TcpStream::connect(addr).unwrap();
+        stalled
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        // Seeing the first byte proves the server captured the large response.
+        // Keep this connection open without draining its receive buffer.
+        stalled.read_exact(&mut [0; 1]).unwrap();
+        server.update("turbotokens_files_watched 9\n".to_string());
+
+        let mut next = std::net::TcpStream::connect(addr).unwrap();
+        next.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+        let mut response = String::new();
+        next.read_to_string(&mut response).unwrap();
         assert!(response.contains("turbotokens_files_watched 9\n"));
     }
 

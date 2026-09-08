@@ -146,7 +146,7 @@ Live mode polls every 100 ms by default. It shows new usage as the agent writes 
 For scripts and monitoring:
 
 ```sh
-turbotokens stream --offline                 # One JSON usage event per line
+turbotokens stream --offline                 # NDJSON snapshot and usage events
 turbotokens live --alert-cost 25              # Notify at $25 estimated spend
 turbotokens live --serve 127.0.0.1:9090        # Local Prometheus endpoint
 ```
