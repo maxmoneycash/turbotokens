@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="200" viewBox="0 0 1280 200">
-<title>turbotokens: 18 agents. 13 ms cached daily. rust.</title>
-<rect width="1280" height="200" fill="#0a0a0a"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="260" viewBox="0 0 1280 260">
+<title>turbotokens: Know what your agents spend.</title>
+<rect width="1280" height="260" fill="#0a0a0a"/>
 <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, monospace" text-anchor="start">
-<text x="56" y="88" fill="#f4f4f4" font-size="40" font-weight="600">turbotokens</text>
-<text x="56" y="128" fill="#8a8a8a" font-size="18">18 agents. 13 ms cached daily. rust.</text>
+<text x="56" y="130" fill="#f4f4f4" font-size="88" font-weight="600">turbotokens</text>
+<text x="56" y="190" fill="#a3a3a3" font-size="30">Know what your agents spend.</text>
 </g>
 </svg>

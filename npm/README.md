@@ -55,8 +55,9 @@ Reports read local agent logs. Costs are estimates and can differ from your bill
 
 ## Other installs and help
 
-- [Homebrew, shell installer, and standalone downloads](https://github.com/maxmoneycash/turbotokens#get-started)
-- [All supported agents and workflow examples](https://github.com/maxmoneycash/turbotokens#eighteen-agents-one-daily-report)
+- [macOS, Windows, and Linux installation](https://github.com/maxmoneycash/turbotokens/blob/main/docs/installation.md)
+- [Migrate a ccusage integration](https://github.com/maxmoneycash/turbotokens/blob/main/docs/migrating-from-ccusage.md)
+- [Supported agents and workflow examples](https://github.com/maxmoneycash/turbotokens#reports)
 - [Report a bug](https://github.com/maxmoneycash/turbotokens/issues/new?template=bug_report.yml)
 - [Contribute](https://github.com/maxmoneycash/turbotokens/blob/main/CONTRIBUTING.md)
 
