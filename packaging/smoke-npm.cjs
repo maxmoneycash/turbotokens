@@ -44,6 +44,14 @@ try {
   assert.match(run(executable, ['wrapped', '--help']), /--year/);
   assert.match(run(executable, ['limits', '--help']), /plan-limit/);
   assert.match(run(executable, ['completions', '--help']), /bash\|zsh\|fish/);
+  // Also exercise the global install recommended in the README, with a private prefix.
+  const globalPrefix = path.join(temporary, 'global');
+  run(npm, ['install', '--global', '--prefix', globalPrefix, '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)], { cwd: temporary });
+  const globalExecutable = process.platform === 'win32'
+    ? path.join(globalPrefix, 'turbotokens.cmd')
+    : path.join(globalPrefix, 'bin', 'turbotokens');
+  assert.equal(run(globalExecutable, ['--version']).trim(), `turbotokens ${version}`);
+  console.log('Local and global npm launchers passed');
   const installed = path.join(temporary, 'node_modules', 'turbotokens');
   fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
   assert.throws(() => run(executable, ['--version']), error => error.status === 1 && /binary is missing/.test(error.stderr));
