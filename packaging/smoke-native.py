@@ -194,6 +194,13 @@ def smoke(binary, output, root, evidence):
     counts = (100, 200, 30, 40)
     source.write_bytes(record(counts))
     reports("first_report", counts)
+    cache_files = [path.relative_to(root / "cache").as_posix()
+                   for path in (root / "cache").rglob("*.bin")]
+    evidence["checks"]["cache_created"] = {
+        "passed": any(path.startswith("parse-v1/") for path in cache_files)
+                  and any(path.startswith("report-v1/") for path in cache_files),
+        "files": sorted(cache_files),
+    }
     source.write_bytes(record(counts, whitespace=True))
     reports("whitespace_json", counts)
 
