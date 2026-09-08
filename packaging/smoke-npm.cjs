@@ -5,13 +5,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
+const runtime = process.env.TURBOTOKENS_TEST_NODE || process.execPath;
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const run = (command, args, options = {}) => execFileSync(command, args, {
   encoding: 'utf8', shell: process.platform === 'win32', ...options,
 });
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'turbotokens-npm-'));
 try {
-  const packed = JSON.parse(run(npm, ['pack', '--json', '--pack-destination', temporary], { cwd: path.join(root, 'npm') }))[0];
+  const packed = JSON.parse(run(npm, ['pack', path.join(root, 'npm'), '--json'], { cwd: temporary }))[0];
   assert(packed.files.some(file => file.path === 'bin/turbotokens.js'));
   assert(packed.files.some(file => file.path === 'LICENSE'));
   assert(!packed.files.some(file => file.path.startsWith('vendor/')));
@@ -37,7 +38,7 @@ try {
   const sums = JSON.parse(fs.readFileSync(sumsPath));
   for (const asset of Object.keys(sums)) sums[asset] = '0'.repeat(64);
   fs.writeFileSync(sumsPath, JSON.stringify(sums));
-  assert.throws(() => run(process.execPath, [path.join(installed, 'install.js')]), error => error.status === 1 && /checksum mismatch/.test(error.stderr));
+  assert.throws(() => run(runtime, [path.join(installed, 'install.js')]), error => error.status === 1 && /checksum mismatch/.test(error.stderr));
   assert(!fs.existsSync(path.join(installed, 'vendor')));
   console.log(`npm package passed: ${process.platform}-${process.arch}, v${version}`);
 } finally {
