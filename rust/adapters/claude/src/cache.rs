@@ -109,20 +109,12 @@ fn scan_uncached<R>(path: &Path, scan: &impl Fn(&[u8]) -> ScanResult<R>) -> (Opt
     result
 }
 
-/// Maps a log file and passes its bytes to `f`. Memory-mapping skips the
-/// 2.5 GB `read()` copy that dominated uncached scans: page-cached files are
-/// scanned in place. Falls back to `None` (caller uses an empty result) when
-/// the file cannot be opened or mapped.
+/// Read owned bytes before parsing. Session logs can be truncated or rewritten
+/// by another process; borrowed memory maps can fault when their backing file
+/// shrinks during a scan. Read failures retain the existing empty-result policy.
 fn with_file_bytes<R>(path: &Path, f: impl FnOnce(&[u8]) -> R) -> Option<R> {
-    let file = fs::File::open(path).ok()?;
-    if file.metadata().ok()?.len() == 0 {
-        return Some(f(&[]));
-    }
-    // SAFETY: read-only mapping of append-only session logs. A concurrent
-    // truncate from another process could still fault, which is inherent to
-    // mapping files we do not own — the same tradeoff ripgrep makes.
-    let map = unsafe { memmap2::MmapOptions::new().map(&file) }.ok()?;
-    Some(f(&map))
+    let bytes = fs::read(path).ok()?;
+    Some(f(&bytes))
 }
 
 fn finish_scan<R>(scanned: ScanResult<R>) -> (Option<i64>, Vec<R>) {
@@ -571,6 +563,25 @@ mod tests {
 
     fn read_line_entry(reader: &mut Reader<'_>) -> Option<String> {
         reader.read_str()
+    }
+
+    #[test]
+    fn scanned_bytes_survive_truncating_the_source_file() {
+        let contents = "record\n".repeat(16_384);
+        let fixture = fs_fixture!({ "log.jsonl": contents.clone() });
+        let path = fixture.path("log.jsonl");
+        let scanned = super::with_file_bytes(&path, |bytes| {
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(0)
+                .unwrap();
+            assert_eq!(bytes, contents.as_bytes());
+            line_scan(bytes).entries.len()
+        });
+        assert_eq!(scanned, Some(16_384));
+        assert_eq!(fs::metadata(path).unwrap().len(), 0);
     }
 
     #[test]

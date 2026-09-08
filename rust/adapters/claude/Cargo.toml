@@ -9,7 +9,6 @@ turbotokens-adapter-common.workspace = true
 turbotokens-core.workspace = true
 jiff.workspace = true
 memchr.workspace = true
-memmap2.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true
 serde_json.workspace = true

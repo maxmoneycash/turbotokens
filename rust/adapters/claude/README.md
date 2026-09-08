@@ -39,6 +39,12 @@ Daily reports use a resident daemon only when its indexed Claude directories
 match the current configuration. Older daemons without source identity are
 bypassed; restart the daemon after upgrading to use its in-memory index.
 
+Report scans read files into owned buffers so concurrent truncation cannot
+invalidate memory while parsing. A scan buffers one file per worker; memory
+and uncached read time grow with the largest active files. Repeat reports over
+unchanged logs still use the parse and report caches. Concurrent writes can
+change the history during a report; rerun after writes settle for stable totals.
+
 Live and resident indexes check file identity/change metadata on each poll,
 including Unix inode and change time. When a file changes, they verify its
 existing bytes before treating growth as an append. Rewritten,
