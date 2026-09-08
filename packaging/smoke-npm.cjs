@@ -57,14 +57,25 @@ try {
     const nativeExtractor = path.join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'tar.exe');
     assert(fs.existsSync(nativeExtractor));
     const fallbackEnvironment = { ...environment };
-    const rootKey = Object.keys(fallbackEnvironment).find(key => key.toLowerCase() === 'systemroot') || 'SystemRoot';
     const pathKey = Object.keys(fallbackEnvironment).find(key => key.toLowerCase() === 'path') || 'Path';
-    // Only this installer child sees the missing primary path. Keep a known
-    // compatible extractor first on PATH, ahead of the deliberately bad shadow.
-    fallbackEnvironment[rootKey] = path.join(temporary, 'missing Windows root');
     fallbackEnvironment[pathKey] = path.dirname(nativeExtractor) + path.delimiter + fallbackEnvironment[pathKey];
+    // Simulate just the missing extractor in this child. Changing SystemRoot
+    // also breaks DNS in Node 14 and would test an unrelated Windows failure.
+    const preload = path.join(temporary, 'missing-native-extractor.cjs');
+    fs.writeFileSync(preload, [
+      'const assert = require("assert");',
+      'const fs = require("fs");',
+      'const child = require("child_process");',
+      'const native = ' + JSON.stringify(nativeExtractor.toLowerCase()) + ';',
+      'const exists = fs.existsSync;',
+      'fs.existsSync = file => typeof file === "string" && file.toLowerCase() === native ? false : exists(file);',
+      'const execute = child.execFileSync;',
+      'let extracted = false;',
+      'child.execFileSync = (command, args, options) => { assert.equal(command, "tar"); extracted = true; return execute(command, args, options); };',
+      'process.on("exit", () => assert(extracted, "installer did not invoke the PATH extractor"));',
+    ].join('\n') + '\n');
     fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
-    run(runtime, [path.join(installed, 'install.js')], { env: fallbackEnvironment });
+    run(runtime, ['--require', preload, path.join(installed, 'install.js')], { env: fallbackEnvironment });
     assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
     console.log('Windows PATH fallback passed with a missing native extractor');
   }
