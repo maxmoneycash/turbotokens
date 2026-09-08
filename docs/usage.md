@@ -45,7 +45,7 @@ Press Ctrl-C to stop.
 
 ### Stream token events
 
-For scripts, pipes, and other tools, stream one JSON object per usage event:
+For scripts, pipes, and other tools, read a newline-delimited JSON feed:
 
 ```sh
 turbotokens stream
@@ -53,7 +53,9 @@ turbotokens stream --agent grok
 turbotokens live --json          # same feed
 ```
 
-Stdout is newline-delimited JSON. Each usage line looks like:
+The feed starts with a `type: "snapshot"` object containing today's totals. It
+then emits accepted usage records from existing history, followed by records
+read as the files grow. Each `type: "usage"` line looks like:
 
 ```json
 {
@@ -75,12 +77,15 @@ Stdout is newline-delimited JSON. Each usage line looks like:
 `agent` is `claude`, `codex`, or `grok`. `totalTokens` is input + output + cache creation + cache read. `cost` is an estimate in USD. A broken pipe (`| head`) is a clean stop.
 
 ```sh
-# Follow new events as they arrive
-turbotokens stream | jq -c '{time: .timestamp, model, tokens: .totalTokens, cost}'
-
-# Running token total, emitted after each event
-turbotokens stream | jq --unbuffered -n 'foreach inputs as $event (0; . + $event.totalTokens; .)'
+# Inspect usage records, excluding the startup snapshot
+turbotokens stream | jq --unbuffered -c 'select(.type == "usage") | {time: .timestamp, model, tokens: .totalTokens, cost}'
 ```
+
+Filter on `type` before consuming records. Adding the startup snapshot to the
+usage records would count historical usage twice. Claude replacement records
+can also correct an earlier message without emitting another usage event, so
+summing this feed does not reconstruct current totals. Use a fresh JSON report
+or the [Prometheus gauges](#prometheus-metrics) for aggregate usage.
 
 On a TTY, `turbotokens live` is the dashboard. Piped or `--json` / `stream` is the machine feed.
 

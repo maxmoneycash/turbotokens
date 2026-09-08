@@ -824,7 +824,7 @@ mod tests {
             "other-file": "keep this content",
         });
         let path = fixture.path("cache/report.bin");
-        let temporary = fixture.path(&format!("cache/.report.bin.{}.tmp", std::process::id()));
+        let temporary = fixture.path(format!("cache/.report.bin.{}.tmp", std::process::id()));
         std::os::unix::fs::symlink(fixture.path("other-file"), &temporary).unwrap();
 
         super::write_cache_file(&path, b"cached report");
