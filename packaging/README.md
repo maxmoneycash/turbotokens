@@ -49,10 +49,10 @@ The archive's short README comes from `RELEASE_README.md`. Packaging replaces
 `@REVISION@` with the built commit so its guide links match the binary. The
 repository README's images and relative links are intended for GitHub.
 
-The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.2`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
+The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.3`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
 
 ```sh
-TURBOTOKENS_VERSION=v1.1.2 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
+TURBOTOKENS_VERSION=v1.1.3 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
 /tmp/turbotokens-install/turbotokens --version
 ```
 
@@ -68,7 +68,8 @@ gh workflow run release.yml --repo maxmoneycash/turbotokens \
   --ref main -f soak_seconds=3600
 ```
 
-Choose a reviewed commit or version tag with `--ref` for repeatable evidence.
+Choose a reviewed branch or version tag with `--ref`. Record the run's commit SHA
+alongside its evidence so the tested revision is unambiguous.
 Each target runs the deterministic [Claude mutation harness](../rust/bench/stress-claude.py)
 with isolated synthetic logs, checks all four token categories and recorded cost,
 and requires cached/uncached JSON parity. This does not cover every agent or
