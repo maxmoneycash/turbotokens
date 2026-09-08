@@ -2,11 +2,13 @@
 """Check a native release using isolated synthetic logs (Python 3.9+, stdlib only)."""
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
+import socket
 import subprocess
 import sys
 import tempfile
@@ -19,9 +21,9 @@ RAW_COUNTS = ("input_tokens", "output_tokens", "cache_creation_input_tokens",
 DATE = "2026-01-02"
 
 
-def record(counts, whitespace=False):
+def record(counts, whitespace=False, date=DATE):
     event = {
-        "type": "assistant", "timestamp": DATE + "T12:00:00.000Z",
+        "type": "assistant", "timestamp": date + "T12:00:00.000Z",
         "sessionId": "native-smoke", "requestId": "req-native-smoke", "costUSD": 0.125,
         "message": {"id": "msg-native-smoke", "role": "assistant",
                     "model": "claude-sonnet-4-20250514",
@@ -76,6 +78,75 @@ def stamp(path):
     metadata = path.stat()
     return {"size": metadata.st_size, "mtime_ns": metadata.st_mtime_ns,
             "ctime_ns": metadata.st_ctime_ns, "inode": metadata.st_ino}
+
+
+def live_rewrites(binary, root, env, source, config):
+    counts = (100, 200, 30, 40)
+    today = datetime.now(timezone.utc).date().isoformat()
+    initial = record(counts, date=today)
+    source.write_bytes(initial)
+    os.utime(source, ns=(1_700_000_000_000_000_000,) * 2)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        address = listener.getsockname()
+    command = [str(binary), "live", "--json", "--interval", "20", "--serve",
+               "%s:%s" % address, "--offline", "--mode", "display", "--timezone", "UTC",
+               "--config", str(config)]
+    phases = []
+    with (root / "live.stdout").open("wb") as stdout, (root / "live.stderr").open("wb") as stderr:
+        child = subprocess.Popen(command, cwd=env["HOME"], env=env,
+                                 stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr)
+        def wait_counts(name, wanted):
+            deadline = time.monotonic() + 10
+            last = "no response"
+            while time.monotonic() < deadline:
+                if child.poll() is not None:
+                    raise AssertionError("live exited with %s" % child.returncode)
+                try:
+                    with socket.create_connection(address, timeout=1) as connection:
+                        body = b""
+                        while True:
+                            part = connection.recv(65536)
+                            if not part:
+                                break
+                            body += part
+                    text = body.decode("utf-8")
+                    actual = {}
+                    for line in text.splitlines():
+                        for kind in ("input", "output", "cache_creation", "cache_read"):
+                            prefix = 'turbotokens_tokens_total{kind="%s"} ' % kind
+                            if line.startswith(prefix):
+                                actual[kind] = int(line[len(prefix):])
+                    last = actual
+                    if tuple(actual.get(kind) for kind in ("input", "output", "cache_creation", "cache_read")) == wanted:
+                        phases.append({"phase": name, "counts": actual})
+                        return
+                except (OSError, ValueError) as error:
+                    last = str(error)
+                time.sleep(0.02)
+            raise AssertionError("live %s did not reach %r: %r" % (name, wanted, last))
+        try:
+            wait_counts("seed", counts)
+            before = source.stat()
+            rewritten = record((101, 201, 31, 41), date=today)
+            assert len(rewritten) == before.st_size
+            with source.open("r+b") as stream:
+                stream.write(rewritten)
+            os.utime(source, ns=(before.st_atime_ns, before.st_mtime_ns))
+            assert source.stat().st_mtime_ns == before.st_mtime_ns
+            wait_counts("in_place_preserved_mtime", (101, 201, 31, 41))
+            source.unlink()
+            wait_counts("deleted", (0, 0, 0, 0))
+            source.write_bytes(rewritten)
+            wait_counts("restored", (101, 201, 31, 41))
+        finally:
+            child.terminate()
+            try:
+                child.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait(timeout=5)
+    return {"passed": True, "phases": phases, "owned_process_stopped": child.poll() is not None}
 
 
 def smoke(binary, output, root, evidence):
@@ -160,6 +231,11 @@ def smoke(binary, output, root, evidence):
         if after["size"] != before["size"] or after["mtime_ns"] != before["mtime_ns"]:
             raise AssertionError(operation + ": size/mtime preservation failed")
         reports(operation + "_preserved_mtime", new_counts, {"before": before, "after": after})
+
+    try:
+        evidence["checks"]["live_rewrites"] = live_rewrites(binary, root, env, source, config)
+    except (AssertionError, OSError, ValueError) as error:
+        evidence["checks"]["live_rewrites"] = {"passed": False, "error": str(error)}
 
     stress = Path(__file__).resolve().parents[1] / "rust" / "bench" / "stress-claude.py"
     stress_output = output.with_name(output.stem + "-stress.json")
