@@ -101,6 +101,11 @@ impl ResidentIndex {
         self.watch.cursors.len()
     }
 
+    /// Source directories represented by this index, for daemon compatibility.
+    pub fn source_paths(&self) -> &[PathBuf] {
+        &self.paths
+    }
+
     pub fn entries_indexed(&self) -> usize {
         self.watch.deduped.len()
     }

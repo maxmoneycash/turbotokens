@@ -36,16 +36,18 @@ impl FileCursor {
     }
 }
 
-/// Outcome of one accepted usage line, with the file's session id attached so
-/// consumers can maintain their own aggregations.
+/// Outcome of one accepted usage line. The entry snapshot remains stable even
+/// when another line in the same feed replaces its deduplicated index.
 pub(crate) enum WatchOutcome {
     Added {
         index: usize,
+        entry: Box<DailyLoadedEntry>,
         session_id: Arc<str>,
     },
     Replaced {
         index: usize,
         previous: Box<DailyLoadedEntry>,
+        entry: Box<DailyLoadedEntry>,
         session_id: Arc<str>,
     },
 }
@@ -167,12 +169,14 @@ impl WatchIndex {
                 {
                     DailyDedupOutcome::Added(index) => sink(WatchOutcome::Added {
                         index,
+                        entry: Box::new(self.deduped[index].clone()),
                         session_id: Arc::clone(&session_id),
                     }),
                     DailyDedupOutcome::Replaced { index, previous } => {
                         sink(WatchOutcome::Replaced {
                             index,
                             previous,
+                            entry: Box::new(self.deduped[index].clone()),
                             session_id: Arc::clone(&session_id),
                         });
                     }

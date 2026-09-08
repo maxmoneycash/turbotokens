@@ -280,8 +280,10 @@ impl LiveState {
 
     fn accept_outcome(&mut self, outcome: WatchOutcome, events: &mut Vec<LiveEvent>) {
         match outcome {
-            WatchOutcome::Added { index, session_id } => {
-                let event = event_for_entry(&self.index.deduped[index], &session_id);
+            WatchOutcome::Added {
+                entry, session_id, ..
+            } => {
+                let event = event_for_entry(&entry, &session_id);
                 self.book.add_contribution(&event);
                 if self.live {
                     self.burn.push(event.total_tokens());
@@ -290,13 +292,14 @@ impl LiveState {
                 events.push(event);
             }
             WatchOutcome::Replaced {
-                index,
+                entry,
                 previous,
                 session_id,
+                ..
             } => {
                 let previous_event = event_for_entry(&previous, &session_id);
                 self.book.subtract_contribution(&previous_event);
-                let event = event_for_entry(&self.index.deduped[index], &session_id);
+                let event = event_for_entry(&entry, &session_id);
                 self.book.add_contribution(&event);
                 if self.live {
                     self.burn.push(
@@ -513,6 +516,86 @@ mod tests {
         assert_eq!(events[0].total_tokens(), 135);
         assert_eq!(state.book.today_totals.total(), 135);
         assert!(state.index.cursors.get(path).unwrap().tail.is_empty());
+    }
+
+    #[test]
+    fn counts_same_message_updates_once_within_a_single_feed() {
+        let path = Path::new("/tmp/projects/proj-a/sess-1.jsonl");
+        let mut state = live_state();
+        let mut events = Vec::new();
+        let bytes = format!(
+            "{}\n{}\n{}\n",
+            usage_line("msg-1", 20),
+            usage_line("msg-1", 250),
+            usage_line("msg-1", 300),
+        );
+
+        state.feed_bytes(path, bytes.as_bytes(), &mut events);
+
+        assert_eq!(state.index.deduped.len(), 1);
+        assert_eq!(state.book.today_totals.total(), 415);
+        assert_eq!(state.book.model_totals["claude-sonnet-4"].total(), 415);
+        assert_eq!(
+            state.book.sessions.values().next().unwrap().totals.total(),
+            415
+        );
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].total_tokens(), 135);
+    }
+
+    #[test]
+    fn counts_multiple_updates_from_one_poll_once() {
+        let initial = format!("{}\n", usage_line("msg-1", 20));
+        let fixture = fs_fixture!({
+            "projects/proj-a/sess-1.jsonl": initial.clone(),
+        });
+        let path = fixture.path("projects/proj-a/sess-1.jsonl");
+        let mut state = live_state();
+        let mut events = Vec::new();
+        state.feed_bytes(&path, initial.as_bytes(), &mut events);
+        assert_eq!(state.book.today_totals.total(), 135);
+        let updated = format!(
+            "{initial}{}\n{}\n",
+            usage_line("msg-1", 250),
+            usage_line("msg-1", 300),
+        );
+        fs::write(&path, &updated).unwrap();
+
+        state.poll_file(&path, updated.len() as u64, &mut events);
+
+        assert_eq!(state.index.deduped.len(), 1);
+        assert_eq!(state.book.today_totals.total(), 415);
+        assert_eq!(state.book.model_totals["claude-sonnet-4"].total(), 415);
+        assert_eq!(
+            state.book.sessions.values().next().unwrap().totals.total(),
+            415
+        );
+    }
+
+    #[test]
+    fn applies_decreasing_sidechain_replacement_in_one_feed() {
+        let path = Path::new("/tmp/projects/proj-a/sess-1.jsonl");
+        let replay = usage_line("msg-1", 20)
+            .replacen('{', "{\"isSidechain\":true,", 1)
+            .replace(
+                "\"cache_read_input_tokens\":5",
+                "\"cache_read_input_tokens\":50000",
+            )
+            .replace(
+                "\"requestId\":\"req-msg-1\"",
+                "\"requestId\":\"req-sidechain\"",
+            );
+        let bytes = format!("{replay}\n{}\n", usage_line("msg-1", 20));
+        let mut state = live_state();
+
+        state.feed_bytes(path, bytes.as_bytes(), &mut Vec::new());
+
+        assert_eq!(state.book.today_totals.total(), 135);
+        assert_eq!(state.book.model_totals["claude-sonnet-4"].total(), 135);
+        assert_eq!(
+            state.book.sessions.values().next().unwrap().totals.total(),
+            135
+        );
     }
 
     #[test]

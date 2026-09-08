@@ -389,7 +389,7 @@ struct DailyLoadedFile {
     entries: Vec<DailyLoadedEntry>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct DailyLoadedEntry {
     pub(super) timestamp_ms: i64,
     pub(super) date: Arc<str>,

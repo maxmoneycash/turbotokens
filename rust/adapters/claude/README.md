@@ -35,6 +35,10 @@ automatic caching is disabled.
 Unix permissions `0700` and `0600`, respectively. `turbotokens doctor` reports
 the selected location. Existing temporary caches are left untouched.
 
+Daily reports use a resident daemon only when its indexed Claude directories
+match the current configuration. Older daemons without source identity are
+bypassed; restart the daemon after upgrading to use its in-memory index.
+
 ## Public surface
 
 - `paths::timestamp_from_line`

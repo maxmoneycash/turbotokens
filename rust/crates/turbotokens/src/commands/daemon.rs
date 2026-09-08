@@ -120,7 +120,7 @@ pub(crate) fn serve(
         }
     });
 
-    let started_with = StartedWith::from_shared(shared);
+    let started_with = StartedWith::from_shared(shared, index.source_paths());
     let interval = Duration::from_millis(interval_ms.max(1));
     let mut next_poll = Instant::now() + interval;
     let mut shutdown = false;
@@ -419,9 +419,14 @@ mod tests {
         }
 
         // Warmup query, then measure.
-        let rows =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+        let rows = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            false,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves rows");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].date.as_deref(), Some("2026-07-28"));
         assert_eq!(rows[0].input_tokens, 100);
@@ -431,8 +436,14 @@ mod tests {
         let mut samples = Vec::new();
         for _ in 0..25 {
             let start = Instant::now();
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &shared,
+                None,
+                false,
+                &[fixture.root().to_path_buf()],
+            )
+            .expect("daemon serves rows");
             samples.push(start.elapsed());
         }
         samples.sort();
@@ -455,8 +466,28 @@ mod tests {
             ..shared.clone()
         };
         assert!(
-            super::super::daemon_client::try_daily_from_socket(&socket, &mismatched, None, false)
-                .is_none()
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &mismatched,
+                None,
+                false,
+                &[fixture.root().to_path_buf()]
+            )
+            .is_none()
+        );
+
+        let other_source =
+            fs_fixture!({ "projects/other/session.jsonl": usage_line("other", 999) });
+        assert!(
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &shared,
+                None,
+                false,
+                &[other_source.root().to_path_buf()],
+            )
+            .is_none(),
+            "a daemon indexing a different Claude directory must be bypassed",
         );
 
         // Appended lines show up within a couple of poll intervals.
@@ -470,16 +501,26 @@ mod tests {
         drop(file);
         thread::sleep(Duration::from_millis(250));
 
-        let rows =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+        let rows = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            false,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves rows");
         assert_eq!(rows[0].input_tokens, 300);
         assert_eq!(rows[0].output_tokens, 60);
         assert!((rows[0].total_cost - 0.03).abs() < 1e-9);
 
-        let grouped =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, true)
-                .expect("daemon serves grouped rows");
+        let grouped = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            true,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves grouped rows");
         assert_eq!(grouped.len(), 1);
         assert_eq!(grouped[0].project.as_deref(), Some("p"));
 

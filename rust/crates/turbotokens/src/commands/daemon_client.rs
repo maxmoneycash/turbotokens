@@ -5,6 +5,10 @@
 #[cfg(any(unix, test))]
 use std::collections::BTreeMap;
 #[cfg(unix)]
+use std::path::Path;
+#[cfg(any(unix, test))]
+use std::path::PathBuf;
+#[cfg(unix)]
 use std::time::Duration;
 
 #[cfg(any(unix, test))]
@@ -61,6 +65,18 @@ pub(crate) fn try_daily_from_socket(
     if !socket.exists() {
         return None;
     }
+    let source_paths = turbotokens_adapter_claude::claude_paths().ok()?;
+    try_daily_from_socket_with_paths(socket, shared, project, group_by_project, &source_paths)
+}
+
+#[cfg(unix)]
+pub(crate) fn try_daily_from_socket_with_paths(
+    socket: &Path,
+    shared: &SharedArgs,
+    project: Option<&str>,
+    group_by_project: bool,
+    source_paths: &[PathBuf],
+) -> Option<Vec<UsageSummary>> {
     let request = DaemonRequest {
         command: "daily".to_string(),
         project: project.map(str::to_string),
@@ -70,7 +86,7 @@ pub(crate) fn try_daily_from_socket(
     if !response.ok {
         return None;
     }
-    if !response.started_with?.compatible_with(shared) {
+    if !response.started_with?.compatible_with(shared, source_paths) {
         return None;
     }
     response.rows
@@ -154,8 +170,8 @@ pub(crate) struct DaemonResponse {
     pub(crate) error: Option<String>,
 }
 
-/// The load-affecting args the daemon was started with. Rows are only
-/// interchangeable with a direct load when every one of these matches.
+/// The load-affecting options and directories represented by the daemon.
+/// Missing source identity from an older daemon requires a direct load.
 #[cfg(any(unix, test))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct StartedWith {
@@ -164,25 +180,42 @@ pub(crate) struct StartedWith {
     pub(crate) offline: bool,
     #[serde(rename = "pricingOverrides", default)]
     pub(crate) pricing_overrides: BTreeMap<String, Value>,
+    #[serde(rename = "sourcePaths", default)]
+    pub(crate) source_paths: Option<Vec<PathBuf>>,
 }
 
 #[cfg(any(unix, test))]
 impl StartedWith {
-    pub(crate) fn from_shared(shared: &SharedArgs) -> Self {
+    pub(crate) fn from_shared(shared: &SharedArgs, source_paths: &[PathBuf]) -> Self {
         Self {
             timezone: shared.timezone.clone(),
             mode: cost_mode_name(shared.mode).to_string(),
             offline: shared.offline,
             pricing_overrides: pricing_overrides_json(shared),
+            source_paths: normalized_source_paths(source_paths),
         }
     }
 
-    pub(crate) fn compatible_with(&self, shared: &SharedArgs) -> bool {
+    pub(crate) fn compatible_with(&self, shared: &SharedArgs, source_paths: &[PathBuf]) -> bool {
         self.timezone == shared.timezone
             && self.offline == shared.offline
             && modes_compatible(shared.mode, &self.mode)
             && self.pricing_overrides == pricing_overrides_json(shared)
+            && self.source_paths.is_some()
+            && self.source_paths == normalized_source_paths(source_paths)
     }
+}
+
+#[cfg(any(unix, test))]
+fn normalized_source_paths(paths: &[PathBuf]) -> Option<Vec<PathBuf>> {
+    let mut paths = paths
+        .iter()
+        .map(|path| path.canonicalize())
+        .collect::<std::io::Result<Vec<_>>>()
+        .ok()?;
+    paths.sort();
+    paths.dedup();
+    Some(paths)
 }
 
 #[cfg(any(unix, test))]
@@ -276,26 +309,28 @@ mod tests {
     #[test]
     fn matches_identical_start_args() {
         let shared = shared_with(CostMode::Auto, true, Some("UTC"));
-        assert!(StartedWith::from_shared(&shared).compatible_with(&shared));
+        assert!(StartedWith::from_shared(&shared, &[]).compatible_with(&shared, &[]));
     }
 
     #[test]
     fn treats_auto_and_calculate_as_compatible_but_not_display() {
-        let auto = StartedWith::from_shared(&shared_with(CostMode::Auto, true, None));
-        assert!(auto.compatible_with(&shared_with(CostMode::Calculate, true, None)));
-        assert!(!auto.compatible_with(&shared_with(CostMode::Display, true, None)));
+        let auto = StartedWith::from_shared(&shared_with(CostMode::Auto, true, None), &[]);
+        assert!(auto.compatible_with(&shared_with(CostMode::Calculate, true, None), &[]));
+        assert!(!auto.compatible_with(&shared_with(CostMode::Display, true, None), &[]));
 
-        let display = StartedWith::from_shared(&shared_with(CostMode::Display, true, None));
-        assert!(display.compatible_with(&shared_with(CostMode::Display, true, None)));
-        assert!(!display.compatible_with(&shared_with(CostMode::Auto, true, None)));
+        let display = StartedWith::from_shared(&shared_with(CostMode::Display, true, None), &[]);
+        assert!(display.compatible_with(&shared_with(CostMode::Display, true, None), &[]));
+        assert!(!display.compatible_with(&shared_with(CostMode::Auto, true, None), &[]));
     }
 
     #[test]
     fn rejects_offline_timezone_and_override_mismatches() {
-        let daemon = StartedWith::from_shared(&shared_with(CostMode::Auto, true, Some("UTC")));
-        assert!(!daemon.compatible_with(&shared_with(CostMode::Auto, false, Some("UTC"))));
-        assert!(!daemon.compatible_with(&shared_with(CostMode::Auto, true, None)));
-        assert!(!daemon.compatible_with(&shared_with(CostMode::Auto, true, Some("Asia/Tokyo"))));
+        let daemon = StartedWith::from_shared(&shared_with(CostMode::Auto, true, Some("UTC")), &[]);
+        assert!(!daemon.compatible_with(&shared_with(CostMode::Auto, false, Some("UTC")), &[]));
+        assert!(!daemon.compatible_with(&shared_with(CostMode::Auto, true, None), &[]));
+        assert!(
+            !daemon.compatible_with(&shared_with(CostMode::Auto, true, Some("Asia/Tokyo")), &[])
+        );
 
         let mut overridden = shared_with(CostMode::Auto, true, Some("UTC"));
         overridden.pricing_overrides.insert(
@@ -305,8 +340,8 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert!(!daemon.compatible_with(&overridden));
-        assert!(StartedWith::from_shared(&overridden).compatible_with(&overridden));
+        assert!(!daemon.compatible_with(&overridden, &[]));
+        assert!(StartedWith::from_shared(&overridden, &[]).compatible_with(&overridden, &[]));
     }
 
     #[test]
@@ -320,9 +355,36 @@ mod tests {
                 ..Default::default()
             },
         );
-        let started_with = StartedWith::from_shared(&shared);
+        let started_with = StartedWith::from_shared(&shared, &[]);
         let json = serde_json::to_string(&started_with).unwrap();
         let decoded: StartedWith = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, started_with);
+    }
+
+    #[test]
+    fn rejects_different_source_directories() {
+        let fixture = turbotokens_test_support::fs_fixture!({
+            "source-a/projects/.keep": "",
+            "source-b/projects/.keep": "",
+        });
+        let shared = shared_with(CostMode::Display, true, Some("UTC"));
+        let source_a = fixture.path("source-a");
+        let source_b = fixture.path("source-b");
+        let daemon = StartedWith::from_shared(&shared, std::slice::from_ref(&source_a));
+
+        assert!(daemon.compatible_with(&shared, std::slice::from_ref(&source_a)));
+        assert!(!daemon.compatible_with(&shared, &[source_b]));
+        assert!(daemon.compatible_with(&shared, &[source_a.join(".")]));
+    }
+
+    #[test]
+    fn rejects_legacy_daemons_without_source_identity() {
+        let shared = shared_with(CostMode::Display, true, Some("UTC"));
+        let legacy: StartedWith = serde_json::from_str(
+            r#"{"timezone":"UTC","mode":"display","offline":true,"pricingOverrides":{}}"#,
+        )
+        .unwrap();
+
+        assert!(!legacy.compatible_with(&shared, &[]));
     }
 }
