@@ -771,6 +771,52 @@ mod tests {
     }
 
     #[test]
+    fn loads_headless_usage_with_whitespace_around_keys() {
+        let compact = json!({
+            "type": "turn.completed",
+            "timestamp": "2026-01-02T00:00:00Z",
+            "model": "gpt-5.2-codex",
+            "usage": {
+                "input_tokens": 120, "cached_input_tokens": 20,
+                "output_tokens": 30, "reasoning_output_tokens": 5,
+                "total_tokens": 150,
+            },
+        })
+        .to_string();
+        for line in [
+            compact.clone(),
+            compact.replace("\":", "\": "),
+            compact.replace("\":", "\" \t: \t"),
+        ] {
+            let fixture = fs_fixture!({ "run.jsonl": line });
+            let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+            assert!(!events[0].is_fallback_model);
+            assert_eq!(events[0].input_tokens, 120);
+            assert_eq!(events[0].cached_input_tokens, 20);
+            assert_eq!(events[0].output_tokens, 30);
+            assert_eq!(events[0].reasoning_output_tokens, 5);
+            assert_eq!(events[0].total_tokens, 150);
+        }
+    }
+
+    #[test]
+    fn whitespace_marker_matches_still_require_real_usage_fields() {
+        let fixture = fs_fixture!({
+            "session.jsonl": [
+                r#"{"type": "response_item", "timestamp": "2026-01-02T00:00:00Z", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 999, "output_tokens": 999}}}}"#,
+                r#"{"type": "response_item", "timestamp": "2026-01-02T00:01:00Z", "payload": {"content": "usage"}}"#,
+            ].join("\n"),
+        });
+        assert!(
+            load_codex_events_from_directory(fixture.root(), true)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn loads_headless_usage_with_unexpected_noncritical_field_types() {
         let fixture = fs_fixture!({
             "run.jsonl":

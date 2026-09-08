@@ -73,6 +73,128 @@ mod tests {
     use turbotokens_test_support::fs_fixture;
 
     #[test]
+    fn whitespace_preserves_session_replay_models_and_report_costs() {
+        use serde_json::json;
+
+        let usage = |timestamp: &str, input, cached, output, reasoning| {
+            json!({
+                "timestamp": timestamp,
+                "type": "event_msg",
+                "payload": {"type": "token_count", "info": {"total_token_usage": {
+                    "input_tokens": input, "cached_input_tokens": cached,
+                    "output_tokens": output, "reasoning_output_tokens": reasoning,
+                    "total_tokens": input + output,
+                }}},
+            })
+        };
+        let mut first = usage("2026-01-02T00:01:00Z", 1000, 100, 200, 50);
+        // Classification must also work beyond the former 64 KiB fallback limit.
+        first["payload"]["padding"] = json!("x".repeat(70 * 1024));
+        let second = usage("2026-01-02T00:02:00Z", 1500, 150, 300, 75);
+        let parent = [
+            json!({"type":"session_meta", "timestamp":"2026-01-02T00:00:00Z", "payload":{"id":"parent"}}),
+            json!({"type":"turn_context", "payload":{"model":"gpt-test-a", "metadata":{"type":"unrelated"}}}),
+            json!({"type":"event_msg", "timestamp":"2026-01-02T00:00:01Z", "payload":{"type":"thread_settings_applied", "thread_settings":{"service_tier":"priority"}}}),
+            first.clone(),
+            first.clone(),
+            second.clone(),
+            json!({"type":"turn_context", "payload":{"model":"gpt-test-b"}}),
+            usage("2026-01-03T00:01:00Z", 1550, 155, 310, 77),
+        ];
+        let child = [
+            json!({"type":"session_meta", "timestamp":"2026-01-02T00:03:00Z", "payload":{"id":"child", "forked_from_id":"parent"}}),
+            json!({"type":"turn_context", "payload":{"model":"gpt-test-a"}}),
+            first,
+            second,
+            usage("2026-01-02T00:04:00Z", 1600, 160, 320, 79),
+        ];
+        let serialize = |events: &[Value], style| {
+            events
+                .iter()
+                .map(|event| {
+                    let line = event.to_string();
+                    match style {
+                        0 => line,
+                        // Whitespace after colons, as emitted by Python's json.dumps.
+                        1 => line.replace("\":", "\": "),
+                        2 => line.replace("\":", "\" \t: \t"),
+                        // Mixed formatting: a compact nested type must not hide a spaced outer type.
+                        _ => line
+                            .replace("\"type\":\"turn_context\"", "\"type\": \"turn_context\"")
+                            .replace("\"type\":\"event_msg\"", "\"type\": \"event_msg\""),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let mut pricing = PricingMap::default();
+        pricing.load_json(r#"{
+            "gpt-test-a":{"input_cost_per_token":0.000001,"output_cost_per_token":0.000002,"cache_read_input_token_cost":0.0000001},
+            "gpt-test-b":{"input_cost_per_token":0.000003,"output_cost_per_token":0.000006,"cache_read_input_token_cost":0.0000003}
+        }"#);
+        let mut reference = None;
+        for style in 0..4 {
+            let fixture = fs_fixture!({
+                "parent.jsonl": serialize(&parent, style),
+                "child.jsonl": serialize(&child, style),
+            });
+            for single_thread in [true, false] {
+                let events =
+                    load_codex_events_from_directory(fixture.root(), single_thread).unwrap();
+                assert_eq!(
+                    events.len(),
+                    4,
+                    "style {style}, single_thread {single_thread}"
+                );
+                assert_eq!(
+                    events
+                        .iter()
+                        .filter(|event| event.session_id == "child")
+                        .count(),
+                    1
+                );
+                assert_eq!(
+                    events
+                        .iter()
+                        .filter(|event| event.service_tier == Some(CodexServiceTier::Fast))
+                        .count(),
+                    3
+                );
+                assert!(events.iter().all(|event| !event.is_fallback_model));
+                let reports = [AgentReportKind::Daily, AgentReportKind::Session].map(|kind| {
+                    let report =
+                        report_json(&events, kind, Some("UTC"), &pricing, CodexSpeed::Standard)
+                            .unwrap();
+                    assert_eq!(report["totals"]["inputTokens"], 1485);
+                    assert_eq!(report["totals"]["cacheReadTokens"], 165);
+                    assert_eq!(report["totals"]["outputTokens"], 330);
+                    assert_eq!(report["totals"]["reasoningOutputTokens"], 81);
+                    assert_eq!(report["totals"]["totalTokens"], 1980);
+                    // Cached input is discounted; reasoning is already included in output.
+                    let expected = 1440.0 * 1e-6
+                        + 160.0 * 0.1e-6
+                        + 320.0 * 2e-6
+                        + 45.0 * 3e-6
+                        + 5.0 * 0.3e-6
+                        + 10.0 * 6e-6;
+                    assert!(
+                        (report["totals"]["costUSD"].as_f64().unwrap() - expected).abs() < 1e-9
+                    );
+                    report
+                });
+                if let Some(expected) = &reference {
+                    assert_eq!(
+                        &reports, expected,
+                        "style {style}, single_thread {single_thread}"
+                    );
+                } else {
+                    reference = Some(reports);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn loads_directory_groups_with_date_filter_without_global_event_vector() {
         let fixture = fs_fixture!({
             "sessions/session.jsonl": [

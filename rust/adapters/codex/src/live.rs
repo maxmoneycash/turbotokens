@@ -642,6 +642,26 @@ mod tests {
     }
 
     #[test]
+    fn maps_whitespace_formatted_token_count_lines() {
+        let mut state = live_state();
+        let mut events = Vec::new();
+        let line = token_count_line(100, 10, 50, 5).replace("\":", "\": ");
+        state.feed_bytes(
+            Path::new("/tmp/codex/sessions"),
+            Path::new("/tmp/codex/sessions/session-a.jsonl"),
+            format!("{line}\n").as_bytes(),
+            &mut events,
+        );
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
+        assert_eq!(events[0].usage.input_tokens, 90);
+        assert_eq!(events[0].usage.cache_read_input_tokens, 10);
+        assert_eq!(events[0].usage.output_tokens, 50);
+        assert_eq!(events[0].total_tokens(), 150);
+        assert_eq!(state.book.today_totals.total(), 150);
+    }
+
+    #[test]
     fn deltas_cumulative_total_token_usage_like_the_report_path() {
         let dir = Path::new("/tmp/codex/sessions");
         let path = Path::new("/tmp/codex/sessions/session-a.jsonl");

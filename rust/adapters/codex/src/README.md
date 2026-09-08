@@ -18,6 +18,10 @@ Relevant JSONL event:
 - `payload.info.last_token_usage` is the current turn delta.
 - If only cumulative totals exist, subtract prior totals to recover deltas.
 
+JSONL records may use whitespace around field separators, including Python's
+default `json.dumps` formatting. Compact records keep the fast classification
+path; typed parsing validates matched records before counting usage.
+
 Relevant speed-setting event in Codex CLI 0.144.0 and later:
 
 - `type === "event_msg"`
