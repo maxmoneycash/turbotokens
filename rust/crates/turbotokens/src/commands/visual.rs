@@ -139,7 +139,11 @@ pub(super) fn xml_escape(value: &str) -> String {
             '>' => escaped.push_str("&gt;"),
             '"' => escaped.push_str("&quot;"),
             '\'' => escaped.push_str("&apos;"),
-            '\t' | '\n' | '\r' | '\u{20}'..='\u{d7ff}' | '\u{e000}'..='\u{fffd}'
+            '\t'
+            | '\n'
+            | '\r'
+            | '\u{20}'..='\u{d7ff}'
+            | '\u{e000}'..='\u{fffd}'
             | '\u{10000}'..='\u{10ffff}' => escaped.push(character),
             _ => escaped.push('\u{fffd}'),
         }
