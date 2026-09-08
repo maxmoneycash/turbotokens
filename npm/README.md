@@ -33,6 +33,8 @@ turbotokens wrapped --year 2026 --svg wrapped.svg
 turbotokens doctor                         # Data discovery and diagnostics
 ```
 
+Grok live mode and `stream` require **v1.1.3 or newer**. Check `turbotokens --version` after installing.
+
 Live mode also supports budget webhooks, JSON events, and Prometheus metrics. See the [full usage guide](https://github.com/maxmoneycash/turbotokens/blob/main/docs/usage.md).
 
 ## Measured performance
