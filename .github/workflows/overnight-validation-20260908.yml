@@ -1,0 +1,136 @@
+name: Five-hour native validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/overnight-validation-20260908.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overnight-validation-20260908
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.head_ref == 'validation/overnight-20260908' && github.event.pull_request.head.repo.full_name == github.repository
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: aarch64-apple-darwin
+            asset: turbotokens-macos-arm64.tar.gz
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: turbotokens-macos-x64.tar.gz
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            asset: turbotokens-linux-x64.tar.gz
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            asset: turbotokens-linux-arm64.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: turbotokens-windows-x64.zip
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            asset: turbotokens-windows-arm64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 822b236b3900294276bac9c5d19ba28b4c0b2530
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      # rust-toolchain.toml selects the compiler Cargo will actually use.
+      - name: Install target for the repository toolchain
+        run: rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Configure static Linux build
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends musl-tools
+          target='${{ matrix.target }}'
+          echo "CC_${target//-/_}=musl-gcc" >> "$GITHUB_ENV"
+          echo "AR_${target//-/_}=ar" >> "$GITHUB_ENV"
+          target="${target^^}"
+          echo "CARGO_TARGET_${target//-/_}_LINKER=musl-gcc" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_${target//-/_}_RUSTFLAGS=-C target-feature=+crt-static" >> "$GITHUB_ENV"
+
+      - name: Build release binary
+        run: cargo build --locked --release --bin turbotokens --features fetch-litellm-pricing --target ${{ matrix.target }}
+        working-directory: rust
+
+      - name: Verify binary and release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_id="$(cargo pkgid --manifest-path rust/Cargo.toml --package turbotokens)"
+          version="${package_id##*#}"
+          version="${version##*@}"
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match Rust version $version" >&2
+            exit 1
+          fi
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          if [[ "$RUNNER_OS" == Windows ]]; then binary="$binary.exe"; fi
+          test "$("$binary" --version)" = "turbotokens $version"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Verify native reports and cache updates
+        id: native_smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary="$binary.exe"
+            python_command=python
+          fi
+          "$python_command" packaging/smoke-native.py "$binary" --output "native-smoke-${{ matrix.target }}.json"
+
+      - name: Keep native smoke evidence
+        if: always() && steps.native_smoke.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-smoke-${{ matrix.target }}
+          path: native-smoke-${{ matrix.target }}*.json
+          if-no-files-found: warn
+
+      - name: Verify static Linux linkage and container reports
+        if: runner.os == 'Linux'
+        run: python3 packaging/smoke-linux.py ./rust/target/${{ matrix.target }}/release/turbotokens "$RELEASE_VERSION"
+
+      - name: Run five-hour mutation check
+        id: extended_soak
+        shell: bash
+        env:
+          SOAK_SECONDS: '18000'
+        run: |
+          set -euo pipefail
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary="$binary.exe"
+            python_command=python
+          fi
+          binary="$("$python_command" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "$binary")"
+          "$python_command" rust/bench/stress-claude.py --turbotokens "$binary" --seed 20260908 --duration-seconds "$SOAK_SECONDS" --max-report-cache-files 256 --output "extended-soak-${{ matrix.target }}.json"
+
+      - name: Keep extended mutation evidence
+        if: always() && steps.extended_soak.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extended-soak-${{ matrix.target }}
+          path: extended-soak-${{ matrix.target }}.json
+          if-no-files-found: warn
+
