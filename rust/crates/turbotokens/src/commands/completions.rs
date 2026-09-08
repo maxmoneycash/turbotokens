@@ -500,15 +500,13 @@ fn render_fish(spec: &Spec) -> String {
          \x20               set -a tokens $token\n\
          \x20       end\n\
          \x20   end\n\
-         \x20   set -l buffer (commandline)\n\
-         \x20   if test (count $tokens) -gt 0; and not string match -qr '\\s$' -- $buffer\n\
-         \x20       set -e tokens[-1]\n\
-         \x20   end\n\
          \x20   string join ' ' $tokens\n\
          end\n\
          \n\
          function __fish_turbotokens_at\n\
-         \x20   test (__fish_turbotokens_positionals) = (string join ' ' $argv)\n\
+         \x20   set -l actual (__fish_turbotokens_positionals)\n\
+         \x20   set -l expected (string join ' ' $argv)\n\
+         \x20   test \"$actual\" = \"$expected\"\n\
          end\n\n",
     );
 
@@ -681,6 +679,83 @@ mod tests {
             "-a 'bash zsh fish'",
         ] {
             assert!(script.contains(needle), "fish script missing {needle}");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires fish on PATH; run with --ignored"]
+    fn fish_completes_empty_and_partial_contexts_without_errors() {
+        use std::process::Command;
+        use turbotokens_test_support::Fixture;
+
+        let fixture = Fixture::new();
+        let script = fixture.write_file("turbotokens.fish", render_fish(&build_spec()));
+        let home = fixture.create_dir_all("home");
+        let empty = fixture.create_dir_all("empty");
+        let syntax = Command::new("fish")
+            .args(["--no-config", "-n"])
+            .arg(&script)
+            .output()
+            .expect("run fish syntax check");
+        assert!(syntax.status.success());
+        assert!(syntax.stderr.is_empty());
+
+        for (line, expected) in [
+            ("turbotokens ", vec!["claude", "codex", "daily", "daemon"]),
+            (
+                "turbotokens claude ",
+                vec![
+                    "blocks",
+                    "daily",
+                    "limits",
+                    "monthly",
+                    "session",
+                    "statusline",
+                    "weekly",
+                ],
+            ),
+            ("turbotokens claude da", vec!["daily"]),
+            ("turbotokens claude daily --mo", vec!["--mode", "--mode="]),
+            (
+                "turbotokens claude daily --mode=",
+                vec!["--mode=auto", "--mode=calculate", "--mode=display"],
+            ),
+        ] {
+            let output = Command::new("fish")
+                .args([
+                    "--no-config",
+                    "-c",
+                    "source $argv[1]; complete --do-complete $argv[2]",
+                ])
+                .arg(&script)
+                .arg(line)
+                .env("HOME", &home)
+                .env("XDG_CONFIG_HOME", &home)
+                .env("XDG_CACHE_HOME", &home)
+                .current_dir(&empty)
+                .output()
+                .expect("run fish completion");
+            assert!(output.status.success(), "fish failed for {line:?}");
+            assert!(
+                output.stderr.is_empty(),
+                "{line:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let candidates = stdout
+                .lines()
+                .map(|line| line.split('\t').next().unwrap())
+                .collect::<Vec<_>>();
+            if line == "turbotokens " {
+                for candidate in expected {
+                    assert!(
+                        candidates.contains(&candidate),
+                        "{line:?}: missing {candidate}"
+                    );
+                }
+            } else {
+                assert_eq!(candidates, expected, "{line:?}");
+            }
         }
     }
 }
