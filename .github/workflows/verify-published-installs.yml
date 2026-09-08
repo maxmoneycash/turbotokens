@@ -1,0 +1,136 @@
+name: Verify published Homebrew and standalone installs
+
+on:
+  push:
+    branches: [validation/published-install-v1.1.3]
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOMEBREW_NO_ANALYTICS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 27ceda8944e85429ddd8e62e650c7994459a9568
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@6373c73b318da78d7a3457597e6cc3b6526cbd59
+        with:
+          stable: true
+      - name: Install using the README command
+        run: |
+          brew --version
+          brew install maxmoneycash/tap/turbotokens
+          turbotokens --version
+          brew test maxmoneycash/tap/turbotokens
+      - name: Check a synthetic first report
+        run: |
+          python3 <<'PY'
+          import hashlib, importlib.util, json, os, platform, subprocess, tempfile
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location("native_smoke", "packaging/smoke-native.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          prefix = subprocess.check_output(["brew", "--prefix", "maxmoneycash/tap/turbotokens"], text=True).strip()
+          binary = Path(prefix) / "bin" / "turbotokens"
+          version = subprocess.check_output([str(binary), "--version"], text=True).strip()
+          assert version == "turbotokens 1.1.3", version
+          native_hashes = {"turbotokens-macos-arm64.tar.gz":"77a43ff678097232e8868e1f9d92f8d3b602ee511cd0dc4c2d21ef36828f86bd","turbotokens-macos-x64.tar.gz":"19b962ae4d7649d90003473eafcc4c79d8792e6fd28ae80d23c5e3f27b1e1425","turbotokens-linux-x64.tar.gz":"d0825e2a10aa5a0dec17bcd1126c247d42fa37fa80e466739026af9a822f687c","turbotokens-linux-arm64.tar.gz":"10a8f04e9f1863e5754821b9c02daba129ca66ceac79717932cb4d064c9620e0"}
+          machine = platform.machine().lower()
+          assert machine in ("arm64", "aarch64", "x86_64", "amd64")
+          architecture = "arm64" if machine in ("arm64", "aarch64") else "x64"
+          os_name = "macos" if platform.system() == "Darwin" else "linux"
+          asset = "turbotokens-" + os_name + "-" + architecture + ".tar.gz"
+          expected_hash = native_hashes[asset]
+          assert hashlib.sha256(binary.read_bytes()).hexdigest() == expected_hash
+          with tempfile.TemporaryDirectory(prefix="turbotokens-brew-") as temporary:
+              root = Path(temporary)
+              standalone_directory = root / "standalone bin"
+              subprocess.run(["sh", "install.sh"], check=True, timeout=180,
+                             env=dict(os.environ, TURBOTOKENS_VERSION="v1.1.3",
+                                      TURBOTOKENS_INSTALL_DIR=str(standalone_directory)))
+              standalone = standalone_directory / "turbotokens"
+              assert subprocess.check_output([str(standalone), "--version"], text=True).strip() == version
+              assert hashlib.sha256(standalone.read_bytes()).hexdigest() == expected_hash
+              env = module.isolated_environment(root)
+              source = Path(env["CLAUDE_CONFIG_DIR"]) / "projects" / "brew-check" / "session.jsonl"
+              source.parent.mkdir(parents=True)
+              counts = (100, 200, 30, 40)
+              source.write_bytes(module.record(counts))
+              config = root / "config" / "neutral.json"
+              config.write_text("{}\n")
+              command = [str(binary), "claude", "daily", "--json", "--offline", "--mode", "display", "--timezone", "UTC", "--config", str(config)]
+              reports = {}
+              for name, cache in [("cached", "on"), ("warm", "on"), ("uncached", "off")]:
+                  child = subprocess.run(command, env=dict(env, TURBOTOKENS_CACHE=cache), cwd=env["HOME"], capture_output=True, check=True, timeout=30)
+                  module.validate_report(child.stdout, counts)
+                  reports[name] = child.stdout
+              assert len(set(reports.values())) == 1
+              evidence = {
+                  "status":"passed", "platform":platform.platform(), "version":version,
+                  "binary_sha256":hashlib.sha256(binary.read_bytes()).hexdigest(),
+                  "standalone_binary_sha256":hashlib.sha256(standalone.read_bytes()).hexdigest(),
+                  "release_asset":asset,
+                  "brew_version":subprocess.check_output(["brew", "--version"], text=True).strip(),
+                  "tap_sha":subprocess.check_output(["git", "-C", subprocess.check_output(["brew", "--repo", "maxmoneycash/tap"], text=True).strip(), "rev-parse", "HEAD"], text=True).strip(),
+                  "byte_identical":True, "report":json.loads(reports["cached"]),
+              }
+              Path("homebrew-install.json").write_text(json.dumps(evidence, indent=2) + "\n")
+              print(json.dumps(evidence))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-installs-${{ matrix.os }}
+          path: homebrew-install.json
+          if-no-files-found: warn
+
+  release_notes:
+    needs: install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Record the verified Homebrew version in the release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 <<'PY'
+          import json, subprocess, tempfile
+          from pathlib import Path
+          repo = "maxmoneycash/turbotokens"
+          def api(route):
+              return json.loads(subprocess.check_output(["gh", "api", route]))
+          tag = api("repos/" + repo + "/git/ref/tags/v1.1.3")
+          assert tag["object"]["type"] == "commit" and tag["object"]["sha"] == "27ceda8944e85429ddd8e62e650c7994459a9568"
+          release = api("repos/" + repo + "/releases/tags/v1.1.3")
+          assert not release["draft"] and not release["prerelease"]
+          old = "The native downloads here are v1.1.3. npm and Homebrew remain at v1.1.2 until their separate updates are published."
+          new = "Native downloads and Homebrew install v1.1.3. The npm registry still serves v1.1.2 while its separate package update awaits publication."
+          body = release["body"]
+          if old in body:
+              assert body.count(old) == 1
+              body = body.replace(old, new)
+              with tempfile.TemporaryDirectory(prefix="release-notes-") as temporary:
+                  notes = Path(temporary) / "notes.md"
+                  notes.write_text(body, encoding="utf-8")
+                  subprocess.run(["gh", "release", "edit", "v1.1.3", "--repo", repo,
+                                  "--notes-file", str(notes)], check=True)
+          else:
+              assert new in body, "Release install text changed unexpectedly"
+          updated = api("repos/" + repo + "/releases/tags/v1.1.3")
+          assert updated["id"] == release["id"] and new in updated["body"]
+          print(json.dumps({"release": updated["html_url"], "homebrew": "1.1.3", "npm": "1.1.2"}))
+          
+          PY
