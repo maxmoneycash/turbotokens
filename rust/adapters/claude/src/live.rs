@@ -1,7 +1,6 @@
 use std::{
-    fs,
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
     thread,
     time::Duration,
@@ -9,13 +8,10 @@ use std::{
 
 use serde_json::json;
 
-use turbotokens_adapter_common::{
-    live::{
-        Alert, AlertState, AlertThresholds, Burn, Dashboard, DashboardView, LiveBook, LiveEvent,
-        LiveMetrics, LiveOutput, MetricsServer, TokenTotals, detect_output, map_stream_result,
-        render_prometheus, write_human_line, write_json_line,
-    },
-    read_files_parallel,
+use turbotokens_adapter_common::live::{
+    Alert, AlertState, AlertThresholds, Burn, Dashboard, DashboardView, LiveBook, LiveEvent,
+    LiveMetrics, LiveOutput, MetricsServer, TokenTotals, detect_output, map_stream_result,
+    render_prometheus, write_human_line, write_json_line,
 };
 use turbotokens_core::{Result, json_float};
 
@@ -23,7 +19,6 @@ use crate::{
     cli::{LiveArgs, SharedArgs},
     daily::DailyLoadedEntry,
     fast::FxHashMap,
-    paths::usage_files,
     watch::{WatchIndex, WatchOutcome},
 };
 
@@ -52,14 +47,8 @@ pub fn run_live(args: &LiveArgs) -> Result<()> {
 
     // Seed from the existing logs: parallel reads feed the same per-chunk
     // handler the poller uses for appended bytes.
-    let files = usage_files(&paths, None);
-    let contents = read_files_parallel(&files, shared.single_thread, |file| {
-        fs::read(file).unwrap_or_default()
-    });
     let mut events = Vec::new();
-    for (file, bytes) in files.iter().zip(contents) {
-        state.feed_bytes(file, &bytes, &mut events);
-    }
+    let files = state.seed(&paths, shared.single_thread, &mut events);
     state.live = true;
 
     let stdout = io::stdout();
@@ -92,14 +81,8 @@ pub fn run_live(args: &LiveArgs) -> Result<()> {
     loop {
         thread::sleep(interval);
         state.refresh_today();
-        let files = usage_files(&paths, None);
         events.clear();
-        for file in &files {
-            let Ok(metadata) = fs::metadata(file) else {
-                continue;
-            };
-            state.poll_file(file, metadata.len(), &mut events);
-        }
+        state.poll_paths(&paths, &mut events);
         deliver_alerts(
             output_mode,
             &state.check_alerts(),
@@ -258,9 +241,26 @@ impl LiveState {
         }
     }
 
+    fn seed(
+        &mut self,
+        paths: &[PathBuf],
+        single_thread: bool,
+        events: &mut Vec<LiveEvent>,
+    ) -> Vec<PathBuf> {
+        let mut outcomes = Vec::new();
+        let files = self
+            .index
+            .seed(paths, single_thread, &mut |outcome| outcomes.push(outcome));
+        for outcome in outcomes {
+            self.accept_outcome(outcome, events);
+        }
+        files
+    }
+
     /// Feeds raw bytes for one file through the incremental scanner, emitting
     /// an event for every newly accepted entry.
-    fn feed_bytes(&mut self, path: &Path, bytes: &[u8], events: &mut Vec<LiveEvent>) {
+    #[cfg(test)]
+    fn feed_bytes(&mut self, path: &std::path::Path, bytes: &[u8], events: &mut Vec<LiveEvent>) {
         let mut outcomes = Vec::new();
         self.index
             .feed_bytes(path, bytes, &mut |outcome| outcomes.push(outcome));
@@ -269,10 +269,10 @@ impl LiveState {
         }
     }
 
-    fn poll_file(&mut self, path: &Path, size: u64, events: &mut Vec<LiveEvent>) {
+    fn poll_paths(&mut self, paths: &[PathBuf], events: &mut Vec<LiveEvent>) {
         let mut outcomes = Vec::new();
         self.index
-            .poll_file(path, size, &mut |outcome| outcomes.push(outcome));
+            .poll_paths(paths, &mut |outcome| outcomes.push(outcome));
         for outcome in outcomes {
             self.accept_outcome(outcome, events);
         }
@@ -280,25 +280,51 @@ impl LiveState {
 
     fn accept_outcome(&mut self, outcome: WatchOutcome, events: &mut Vec<LiveEvent>) {
         match outcome {
+            WatchOutcome::Reset => {
+                self.book = LiveBook::new(self.book.today.clone());
+                self.burn = Burn::default();
+                for (entry, session_id) in self.index.entries_with_sessions() {
+                    let event = event_for_entry(entry, session_id);
+                    self.book.add_contribution(&event);
+                    self.book.push_recent(event);
+                }
+            }
             WatchOutcome::Added {
-                entry, session_id, ..
+                entry,
+                session_id,
+                historical,
+                ..
             } => {
                 let event = event_for_entry(&entry, &session_id);
                 self.book.add_contribution(&event);
-                if self.live {
+                if self.live && !historical {
                     self.burn.push(event.total_tokens());
                 }
                 self.book.push_recent(event.clone());
-                events.push(event);
+                if !historical {
+                    events.push(event);
+                }
             }
             WatchOutcome::Replaced {
                 entry,
                 previous,
                 session_id,
+                previous_session_id,
                 ..
             } => {
-                let previous_event = event_for_entry(&previous, &session_id);
+                let previous_event = event_for_entry(&previous, &previous_session_id);
                 self.book.subtract_contribution(&previous_event);
+                let previous_key = (Arc::clone(&previous.project), previous_session_id);
+                if self
+                    .book
+                    .sessions
+                    .get(&previous_key)
+                    .is_some_and(|session| {
+                        session.totals.total() == 0 && session.totals.cost.abs() < 1e-12
+                    })
+                {
+                    self.book.sessions.remove(&previous_key);
+                }
                 let event = event_for_entry(&entry, &session_id);
                 self.book.add_contribution(&event);
                 if self.live {
@@ -552,7 +578,7 @@ mod tests {
         let path = fixture.path("projects/proj-a/sess-1.jsonl");
         let mut state = live_state();
         let mut events = Vec::new();
-        state.feed_bytes(&path, initial.as_bytes(), &mut events);
+        state.seed(&[fixture.root().to_path_buf()], true, &mut events);
         assert_eq!(state.book.today_totals.total(), 135);
         let updated = format!(
             "{initial}{}\n{}\n",
@@ -561,7 +587,7 @@ mod tests {
         );
         fs::write(&path, &updated).unwrap();
 
-        state.poll_file(&path, updated.len() as u64, &mut events);
+        state.poll_paths(&[fixture.root().to_path_buf()], &mut events);
 
         assert_eq!(state.index.deduped.len(), 1);
         assert_eq!(state.book.today_totals.total(), 415);
@@ -636,32 +662,197 @@ mod tests {
     #[test]
     fn rescans_a_shrunk_file_from_offset_zero() {
         let fixture = fs_fixture!({
-            "projects/proj-a/sess-1.jsonl": format!("{}\n", usage_line("msg-1", 20)),
+            "projects/proj-a/sess-1.jsonl": format!("{}\n{}\n", usage_line("msg-1", 20), usage_line("msg-2", 30)),
         });
         let path = fixture.path("projects/proj-a/sess-1.jsonl");
         let mut state = live_state();
         let mut events = Vec::new();
-        let size = fs::metadata(&path).unwrap().len();
-        state.poll_file(&path, size, &mut events);
-        assert_eq!(events.len(), 1);
+        state.poll_paths(&[fixture.root().to_path_buf()], &mut events);
+        assert_eq!(events.len(), 2);
+        assert_eq!(state.book.today_totals.total(), 280);
 
-        // Rewritten shorter, same message id: dedup keeps the totals steady.
+        // Remove one record. Reindexing silently removes its contribution.
         std::fs::write(&path, format!("{}\n", usage_line("msg-1", 20))).unwrap();
-        let shrunk = fs::metadata(&path).unwrap().len();
-        state.poll_file(&path, shrunk, &mut events);
+        state.poll_paths(&[fixture.root().to_path_buf()], &mut events);
 
-        assert_eq!(events.len(), 1);
+        assert_eq!(events.len(), 2);
         assert_eq!(state.book.today_totals.total(), 135);
 
         // Grown afterwards: only the appended line produces a new event.
         let mut grown = format!("{}\n", usage_line("msg-1", 20));
-        grown.push_str(&format!("{}\n", usage_line("msg-2", 30)));
+        grown.push_str(&format!("{}\n", usage_line("msg-3", 40)));
         std::fs::write(&path, &grown).unwrap();
-        let size = fs::metadata(&path).unwrap().len();
-        state.poll_file(&path, size, &mut events);
+        state.poll_paths(&[fixture.root().to_path_buf()], &mut events);
 
-        assert_eq!(events.len(), 2);
-        assert_eq!(events[1].total_tokens(), 145);
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[2].total_tokens(), 155);
+        assert_eq!(state.book.today_totals.total(), 290);
+    }
+
+    #[test]
+    fn rewrites_and_restored_history_do_not_emit_usage_or_inflate_burn() {
+        let initial = format!("{}\n", usage_line("msg-1", 20));
+        let fixture = fs_fixture!({
+            "projects/proj-a/sess-1.jsonl": initial.clone(),
+        });
+        let path = fixture.path("projects/proj-a/sess-1.jsonl");
+        let paths = [fixture.root().to_path_buf()];
+        let mut state = live_state();
+        let mut events = Vec::new();
+        state.seed(&paths, true, &mut events);
+        state.live = true;
+        events.clear();
+
+        // Ordinary appends remain new usage and contribute to the burn rate.
+        let appended = format!("{initial}{}\n", usage_line("msg-2", 30));
+        fs::write(&path, &appended).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(events.len(), 1);
+        assert_eq!(state.burn.rate(), 145.0);
+        events.clear();
+
+        for (revision, contents, expected) in [
+            (
+                1,
+                appended
+                    .replace("msg-1", "msg-3")
+                    .replace("tokens\":20", "tokens\":40"),
+                300,
+            ),
+            (
+                2,
+                format!(
+                    "{}\n{}\n",
+                    usage_line("msg-3", 400),
+                    usage_line("msg-2", 30)
+                ),
+                660,
+            ),
+            (3, initial.clone(), 135),
+        ] {
+            fs::write(&path, contents).unwrap();
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(
+                    fs::FileTimes::new()
+                        .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(revision)),
+                )
+                .unwrap();
+            state.poll_paths(&paths, &mut events);
+            assert!(events.is_empty());
+            assert_eq!(state.book.today_totals.total(), expected);
+            assert_eq!(state.book.model_totals["claude-sonnet-4"].total(), expected);
+            assert_eq!(
+                state
+                    .book
+                    .sessions
+                    .values()
+                    .map(|session| session.totals.total())
+                    .sum::<u64>(),
+                expected
+            );
+            assert_eq!(state.burn.rate(), 0.0);
+        }
+        fs::remove_file(&path).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(state.book.today_totals.total(), 0);
+        assert!(state.book.model_totals.is_empty());
+        assert!(state.book.sessions.is_empty());
+        assert!(state.book.recent.is_empty());
+        assert_eq!(state.live_metrics().files_watched, 0);
+        fs::write(&path, initial).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(state.book.today_totals.total(), 135);
+        assert_eq!(state.live_metrics().files_watched, 1);
+        assert!(events.is_empty());
+        assert_eq!(state.burn.rate(), 0.0);
+    }
+
+    #[test]
+    fn duplicate_winner_changes_keep_the_correct_session_contribution() {
+        let parent = format!("{}\n", usage_line("shared", 20));
+        let sidechain = format!("{}\n", usage_line("shared", 250))
+            .replace("\"version\":", "\"isSidechain\":true,\"version\":");
+        let fixture = fs_fixture!({
+            "projects/proj-b/replay.jsonl": sidechain,
+            "projects/proj-a/parent.jsonl": "",
+        });
+        let paths = [fixture.root().to_path_buf()];
+        let mut state = live_state();
+        let mut events = Vec::new();
+        state.seed(&paths, true, &mut events);
+        assert_eq!(state.book.today_totals.total(), 365);
+        state.live = true;
+        events.clear();
+        let parent_path = fixture.path("projects/proj-a/parent.jsonl");
+        fs::write(&parent_path, &parent).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(state.book.today_totals.total(), 135);
+        assert_eq!(state.book.sessions.len(), 1);
+        let session = state.book.session_views().pop().unwrap();
+        assert_eq!(session.session_id, "parent");
+        assert_eq!(session.project, "proj-a");
+        assert_eq!(session.totals.total(), 135);
+        assert!(events.is_empty());
+        assert_eq!(state.burn.rate(), 0.0);
+        fs::remove_file(&parent_path).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(state.book.today_totals.total(), 365);
+        let session = state.book.session_views().pop().unwrap();
+        assert_eq!(session.session_id, "replay");
+        assert_eq!(session.project, "proj-b");
+        fs::write(&parent_path, parent).unwrap();
+        state.poll_paths(&paths, &mut events);
+        assert_eq!(state.book.today_totals.total(), 135);
+        assert!(events.is_empty());
+        assert_eq!(state.burn.rate(), 0.0);
+    }
+
+    #[test]
+    fn history_restored_after_an_observed_empty_file_is_not_new_activity() {
+        for with_ids in [true, false] {
+            let mut value: serde_json::Value =
+                serde_json::from_str(&usage_line("msg-1", 20)).unwrap();
+            if !with_ids {
+                value.as_object_mut().unwrap().remove("requestId");
+                value["message"].as_object_mut().unwrap().remove("id");
+            }
+            let record = value.to_string() + "\n";
+            let copies = if with_ids { 1 } else { 2 };
+            let initial = record.repeat(copies);
+            let fixture = fs_fixture!({
+                "projects/proj-a/session.jsonl": initial.clone(),
+            });
+            let path = fixture.path("projects/proj-a/session.jsonl");
+            let paths = [fixture.root().to_path_buf()];
+            let mut state = live_state();
+            let mut events = Vec::new();
+            state.seed(&paths, true, &mut events);
+            assert_eq!(events.len(), copies);
+            assert_eq!(state.book.today_totals.total(), 135 * copies as u64);
+            state.live = true;
+            events.clear();
+            fs::write(&path, "").unwrap();
+            state.poll_paths(&paths, &mut events);
+            assert_eq!(state.book.today_totals.total(), 0);
+            fs::write(&path, &initial).unwrap();
+            state.poll_paths(&paths, &mut events);
+            assert_eq!(state.book.today_totals.total(), 135 * copies as u64);
+            assert!(events.is_empty());
+            assert_eq!(state.burn.rate(), 0.0);
+
+            let new_record = if with_ids {
+                format!("{}\n", usage_line("msg-2", 30))
+            } else {
+                record
+            };
+            fs::write(&path, format!("{initial}{new_record}")).unwrap();
+            state.poll_paths(&paths, &mut events);
+            assert_eq!(events.len(), 1);
+            assert_eq!(state.burn.rate(), if with_ids { 145.0 } else { 135.0 });
+        }
     }
 
     #[test]

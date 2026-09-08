@@ -112,19 +112,16 @@ impl ResidentIndex {
 
     fn apply(&mut self, outcome: WatchOutcome) {
         match outcome {
+            WatchOutcome::Reset => {
+                self.by_date.clear();
+                self.by_date_project.clear();
+                self.date_entries.clear();
+                for index in 0..self.watch.deduped.len() {
+                    self.add_entry(index);
+                }
+            }
             WatchOutcome::Added { index, .. } => {
-                let entry = &self.watch.deduped[index];
-                let date = entry.date.to_string();
-                let project = Arc::clone(&entry.project);
-                self.by_date
-                    .entry(date.clone())
-                    .or_default()
-                    .add_entry(entry);
-                self.by_date_project
-                    .entry((date.clone(), project))
-                    .or_default()
-                    .add_entry(entry);
-                self.date_entries.entry(date).or_default().push(index);
+                self.add_entry(index);
             }
             WatchOutcome::Replaced {
                 index, previous, ..
@@ -148,6 +145,21 @@ impl ResidentIndex {
                 }
             }
         }
+    }
+
+    fn add_entry(&mut self, index: usize) {
+        let entry = &self.watch.deduped[index];
+        let date = entry.date.to_string();
+        let project = Arc::clone(&entry.project);
+        self.by_date
+            .entry(date.clone())
+            .or_default()
+            .add_entry(entry);
+        self.by_date_project
+            .entry((date.clone(), project))
+            .or_default()
+            .add_entry(entry);
+        self.date_entries.entry(date).or_default().push(index);
     }
 
     /// Rebuilds one date's accumulators from the resident entries so a dedup
@@ -211,6 +223,98 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         }
+    }
+
+    #[test]
+    fn replaces_changed_history_instead_of_retaining_old_contributions() {
+        let first = usage_line("msg-1", 20);
+        let second = usage_line("msg-2", 30);
+        let initial = format!("{first}\n{second}\n");
+        let replacements = [
+            (format!("{}\n{second}\n", usage_line("msg-3", 40)), 300),
+            (
+                format!("{}\n{second}\n", usage_line("msg-3", 400))
+                    .replace("2026-07-27", "2026-07-28"),
+                660,
+            ),
+            (format!("{first}\n"), 135),
+            (String::new(), 0),
+        ];
+        for single_thread in [true, false] {
+            for (replacement, expected_tokens) in &replacements {
+                let fixture = fs_fixture!({
+                    "projects/proj-a/sess-1.jsonl": initial.clone(),
+                });
+                let paths = vec![fixture.root().to_path_buf()];
+                let mut shared = shared();
+                shared.single_thread = single_thread;
+                let mut index = ResidentIndex::with_paths(&shared, paths.clone());
+                index.seed();
+                let path = fixture.path("projects/proj-a/sess-1.jsonl");
+                std::fs::write(&path, replacement).unwrap();
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH))
+                    .unwrap();
+                index.poll();
+                let rows = index.daily_rows(None, false);
+                assert_eq!(
+                    rows.iter().map(|row| row.total_tokens()).sum::<u64>(),
+                    *expected_tokens
+                );
+                let mut fresh = ResidentIndex::with_paths(&shared, paths);
+                fresh.seed();
+                for grouped in [false, true] {
+                    assert_eq!(
+                        serde_json::to_value(index.daily_rows(None, grouped)).unwrap(),
+                        serde_json::to_value(fresh.daily_rows(None, grouped)).unwrap()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn deletion_and_restoration_reselect_duplicate_winners_across_files() {
+        let lower = format!("{}\n", usage_line("shared", 20));
+        let higher = format!("{}\n", usage_line("shared", 250));
+        let fixture = fs_fixture!({
+            "projects/proj-a/low.jsonl": lower.clone(),
+            "projects/proj-b/high.jsonl": higher.clone(),
+        });
+        let mut index = ResidentIndex::with_paths(&shared(), vec![fixture.root().to_path_buf()]);
+        index.seed();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 365);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-b")
+        );
+        let high_path = fixture.path("projects/proj-b/high.jsonl");
+        std::fs::remove_file(&high_path).unwrap();
+        index.poll();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 135);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-a")
+        );
+        assert_eq!(index.files_watched(), 1);
+        std::fs::write(&high_path, &higher).unwrap();
+        index.poll();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 365);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-b")
+        );
+        assert_eq!(index.entries_indexed(), 1);
+        std::fs::remove_file(&high_path).unwrap();
+        std::fs::remove_file(fixture.path("projects/proj-a/low.jsonl")).unwrap();
+        index.poll();
+        assert!(index.daily_rows(None, false).is_empty());
+        assert!(index.daily_rows(None, true).is_empty());
+        assert_eq!(index.files_watched(), 0);
+        assert_eq!(index.entries_indexed(), 0);
     }
 
     #[test]

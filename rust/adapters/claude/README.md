@@ -7,7 +7,7 @@ into the usage entries the reports render.
 
 - `daily.rs` — the daily report path, which reads the same files with a narrower parser.
 - `paths.rs` — environment variables, default directories, and file discovery.
-- `cache.rs` — on-disk parse cache: per-file scanned entries keyed by path/size/mtime; changed files are rescanned to handle both appends and rewrites.
+- `cache.rs` — on-disk parse cache: per-file scanned entries keyed by path and file identity/change metadata; changed files are rescanned to handle both appends and rewrites.
 - `live.rs` — the `turbotokens live` real-time telemetry stream (dashboard, NDJSON, and human-line output modes).
 
 Anything that is not specific to this source belongs in `turbotokens-core` or
@@ -38,6 +38,17 @@ the selected location. Existing temporary caches are left untouched.
 Daily reports use a resident daemon only when its indexed Claude directories
 match the current configuration. Older daemons without source identity are
 bypassed; restart the daemon after upgrading to use its in-memory index.
+
+Live and resident indexes check file identity/change metadata on each poll,
+including Unix inode and change time. When a file changes, they verify its
+existing bytes before treating growth as an append. Rewritten,
+truncated, deleted, or restored logs rebuild the in-memory totals, including
+duplicates that survive in other files. This rebuild does not emit historical
+records as new usage; it clears the trailing burn window. Unchanged files need
+no content reads, while verifying an append reads the active file's full prefix.
+If a surviving file changes during a rebuild read, the previous index stays in
+place until a later poll can read every surviving file coherently. Poll intervals
+set scan cadence; verification time grows with the active file size.
 
 ## Public surface
 
