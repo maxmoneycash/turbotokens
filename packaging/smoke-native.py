@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 
 COUNTS = ("inputTokens", "outputTokens", "cacheCreationTokens", "cacheReadTokens")
@@ -149,6 +150,38 @@ def live_rewrites(binary, root, env, source, config):
     return {"passed": True, "phases": phases, "owned_process_stopped": child.poll() is not None}
 
 
+
+def svg_labels(run, source, root, config):
+    # Exercise the actual CLI and an independent XML parser. JSON remains
+    # lossless; only SVG display labels replace XML 1.0's forbidden characters.
+    cases = [
+        ("markup", "model<script>&\"'", "model<script>&\"'"),
+        ("controls", "model\0\x08\x0b\x0c\x0e\x1b\x1f\ufffe\uffff",
+         "model" + "\ufffd" * 9),
+        ("unicode", "café 日本語 🦀", "café 日本語 🦀"),
+    ]
+    checks = []
+    for name, model, displayed in cases:
+        event = json.loads(record((100, 200, 30, 40)))
+        event["message"]["model"] = model
+        source.write_text(json.dumps(event) + "\n", encoding="utf-8")
+        destination = root / (name + ".svg")
+        child = run(["wrapped", "--year", "2026", "--offline", "--mode", "display",
+                     "--json", "--svg", str(destination), "--config", str(config)])
+        if child.returncode:
+            raise AssertionError("SVG export failed: " + child.stderr.decode("utf-8", errors="replace"))
+        report = json.loads(child.stdout)
+        assert report["topModel"]["model"] == model, "JSON model name changed"
+        assert report["totalTokens"] == 370
+        svg = ET.parse(destination).getroot()
+        assert svg.tag == "{http://www.w3.org/2000/svg}svg"
+        titles = [node.text for node in svg.iter("{http://www.w3.org/2000/svg}title")]
+        assert displayed in titles, "SVG title does not preserve the display label"
+        assert not any(node.tag.endswith("}script") for node in svg.iter())
+        checks.append({"case": name, "xml_parsed": True, "json_name_preserved": True})
+    return {"passed": True, "cases": checks}
+
+
 def smoke(binary, output, root, evidence):
     env = isolated_environment(root)
     home = Path(env["HOME"])
@@ -243,6 +276,8 @@ def smoke(binary, output, root, evidence):
         evidence["checks"]["live_rewrites"] = live_rewrites(binary, root, env, source, config)
     except (AssertionError, OSError, ValueError) as error:
         evidence["checks"]["live_rewrites"] = {"passed": False, "error": str(error)}
+
+    evidence["checks"]["svg_labels"] = svg_labels(run, source, root, config)
 
     stress = Path(__file__).resolve().parents[1] / "rust" / "bench" / "stress-claude.py"
     stress_output = output.with_name(output.stem + "-stress.json")
