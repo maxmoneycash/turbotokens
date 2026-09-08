@@ -1,0 +1,142 @@
+name: Complete the verified v1.1.3 draft
+on:
+  push:
+    branches: [validation/complete-native-v1.1.3]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: publish-native-v1.1.3
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify the existing draft against the original approved bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node <<'NODE'
+          "use strict";
+          const assert = require("node:assert/strict");
+          const {execFileSync, spawnSync} = require("node:child_process");
+          const {createHash} = require("node:crypto");
+          const fs = require("node:fs"), path = require("node:path");
+          const REPO = "maxmoneycash/turbotokens", SOURCE = "27ceda8944e85429ddd8e62e650c7994459a9568", TAG = "v1.1.3";
+          const ARCHIVES = [{"archive_bytes":3034995,"archive_sha256":"e0ebdb307c70edb437ea23e98c2579b6747eefe03726174ce11f69f779768659","asset":"turbotokens-macos-arm64.tar.gz","binary_sha256":"77a43ff678097232e8868e1f9d92f8d3b602ee511cd0dc4c2d21ef36828f86bd","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3379632,"archive_sha256":"517cd526ee149e00e1ca6d29069cac0414e868f3202070b11c1717c619bbc811","asset":"turbotokens-macos-x64.tar.gz","binary_sha256":"19b962ae4d7649d90003473eafcc4c79d8792e6fd28ae80d23c5e3f27b1e1425","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-apple-darwin","version":"turbotokens 1.1.3"},{"archive_bytes":3613841,"archive_sha256":"3e024cbbd916e037d5073149a92843960e2871ab8a5d5270ce90d593235f25a3","asset":"turbotokens-linux-x64.tar.gz","binary_sha256":"d0825e2a10aa5a0dec17bcd1126c247d42fa37fa80e466739026af9a822f687c","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3335301,"archive_sha256":"7256ba213586a8a37512b3dee112a63c868accd4af9166883ced8c74f4b924fe","asset":"turbotokens-linux-arm64.tar.gz","binary_sha256":"10a8f04e9f1863e5754821b9c02daba129ca66ceac79717932cb4d064c9620e0","members":["LICENSE","README.md","turbotokens"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-unknown-linux-musl","version":"turbotokens 1.1.3"},{"archive_bytes":3206887,"archive_sha256":"a12a578e9e7bd9955e0df95693d2d772a8774f399008694ed0da083e76950d85","asset":"turbotokens-windows-x64.zip","binary_sha256":"fa47942edfdcf20eadad85ba87bcffc67e0ff721f097455424e1aeb9cbad73c4","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"x86_64-pc-windows-msvc","version":"turbotokens 1.1.3"},{"archive_bytes":2854053,"archive_sha256":"c4cbf294acea7cd3e392f0bbb490ed31baa912a3535077d38dc960f4afd7415b","asset":"turbotokens-windows-arm64.zip","binary_sha256":"4aa17f95bb19db37603234e3964ca97ce8015ae50a5dc3e24b84524c32fdcc1a","members":["LICENSE","README.md","turbotokens.exe"],"pricing":{"bytes":2311609,"sha256":"f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202","source_commit":"eeb7732fc11fd47762ca84cc3fb7cc74235d7097","url":"https://raw.githubusercontent.com/BerriAI/litellm/eeb7732fc11fd47762ca84cc3fb7cc74235d7097/model_prices_and_context_window.json"},"rustc":"rustc 1.97.1 (8bab26f4f 2026-07-14)","source_sha":"27ceda8944e85429ddd8e62e650c7994459a9568","target":"aarch64-pc-windows-msvc","version":"turbotokens 1.1.3"}];
+          const directory = path.resolve("approved-release");
+          const names = ARCHIVES.map(item => item.asset).concat(["SHA256SUMS", "BUILD_PROVENANCE.json", "VALIDATION.json"]);
+          const sha256 = data => createHash("sha256").update(data).digest("hex");
+          const api = (route, body) => JSON.parse(execFileSync("gh", ["api", route, ...(body ? ["--method", "POST", "--input", "-"] : [])], {input:body ? JSON.stringify(body) : undefined, encoding:"utf8", maxBuffer:4*1024*1024}));
+          function optional(route) {
+            const result = spawnSync("gh", ["api", route], {encoding:"utf8", maxBuffer:4*1024*1024});
+            if (result.error) throw result.error;
+            if (result.status === 0) return JSON.parse(result.stdout);
+            if (result.status === 1 && /\(HTTP 404\)/.test(result.stderr)) return null;
+            throw new Error("GitHub lookup failed: " + result.stderr);
+          }
+          const APPROVED = {"id":10072239720,"name":"approved-native-release-v1.1.3","size_in_bytes":19435717,"url":"https://api.github.com/repos/maxmoneycash/turbotokens/actions/artifacts/10072239720","archive_download_url":"https://api.github.com/repos/maxmoneycash/turbotokens/actions/artifacts/10072239720/zip","expired":false,"created_at":"2026-09-08T19:07:07Z","expires_at":"2026-12-07T19:06:41Z","updated_at":"2026-09-08T19:07:07Z","digest":"sha256:f658e5ca67afff121d60303d909ef13775ee2e85d8059060eaeb8fdd3f5eaf90","workflow_run":{"id":34267030451,"repository_id":1315391958,"head_repository_id":1315391958,"head_branch":"validation/publish-native-v1.1.3","head_sha":"5f9e5ae42fecf3ba98a7335a185101fad5ced697"}};
+          const original = api("repos/" + REPO + "/actions/runs/34267030451");
+          assert.equal(original.head_sha, "5f9e5ae42fecf3ba98a7335a185101fad5ced697");
+          assert.equal(original.status, "completed");
+          const jobs = api("repos/" + REPO + "/actions/runs/34267030451/jobs?per_page=100").jobs;
+          const verified = jobs.filter(job => job.name === "verify");
+          assert.equal(verified.length, 1);
+          assert.equal(verified[0].status, "completed");
+          assert.equal(verified[0].conclusion, "success");
+          const approvedMetadata = api("repos/" + REPO + "/actions/artifacts/" + APPROVED.id);
+          assert.equal(approvedMetadata.digest, APPROVED.digest);
+          assert.equal(approvedMetadata.size_in_bytes, APPROVED.size_in_bytes);
+          assert.equal(approvedMetadata.workflow_run.id, 34267030451);
+          assert.equal(approvedMetadata.workflow_run.head_sha, original.head_sha);
+          assert.equal(approvedMetadata.expired, false);
+          const zipped = execFileSync("gh", ["api", "repos/" + REPO + "/actions/artifacts/" + APPROVED.id + "/zip"], {maxBuffer:32*1024*1024});
+          assert.equal(zipped.length, APPROVED.size_in_bytes);
+          assert.equal("sha256:" + sha256(zipped), APPROVED.digest);
+          const temporary = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "verified-draft-"));
+          try {
+            const zipPath = path.join(temporary, "approved.zip");
+            fs.writeFileSync(zipPath, zipped);
+            const listing = execFileSync("unzip", ["-Z1", zipPath], {encoding:"utf8"}).trim().split(/\r?\n/).sort();
+            assert.deepEqual(listing, [...names, "RELEASE_NOTES.md"].sort());
+            fs.mkdirSync(directory);
+            for (const name of listing) {
+              assert(!/[\\/?*\[\]\r\n]/.test(name));
+              fs.writeFileSync(path.join(directory, name), execFileSync("unzip", ["-p", zipPath, name], {maxBuffer:32*1024*1024}));
+            }
+          } finally {
+            fs.rmSync(temporary, {recursive:true, force:true});
+          }
+          assert.deepEqual(fs.readdirSync(directory).sort(), [...names, "RELEASE_NOTES.md"].sort());
+          
+          const provenance = JSON.parse(fs.readFileSync(path.join(directory, "BUILD_PROVENANCE.json")));
+          const validation = JSON.parse(fs.readFileSync(path.join(directory, "VALIDATION.json")));
+          assert.equal(provenance.source_sha, SOURCE);
+          assert.deepEqual(provenance.archives, ARCHIVES);
+          assert.equal(validation.source_sha, SOURCE);
+          assert.equal(validation.status, "passed");
+          assert.equal(validation.version, "1.1.3");
+          assert.equal(validation.verification_run_id, 34267030451);
+          assert.equal(validation.runs.soak.id, 34234896673);
+          assert.equal(validation.soaks.length, 6);
+          assert.deepEqual(validation.soaks.map(item => item.summary.target).sort(), ARCHIVES.map(item => item.target).sort());
+          for (const item of validation.soaks) {
+            assert.equal(item.summary.status, "passed");
+            assert(item.summary.duration_seconds >= 18000 && item.summary.elapsed_seconds >= 18000);
+            assert(item.summary.report_cache.files <= 256 && item.summary.report_cache.peak_sampled_files <= 256);
+          }
+          const sums = [...ARCHIVES].sort((a,b) => a.asset.localeCompare(b.asset)).map(item => item.archive_sha256 + "  " + item.asset).join("\n") + "\n";
+          assert.equal(fs.readFileSync(path.join(directory, "SHA256SUMS"), "utf8"), sums);
+          const expected = names.map(name => {
+            const bytes = fs.readFileSync(path.join(directory, name));
+            const archive = ARCHIVES.find(item => item.asset === name);
+            if (archive) {
+              assert.equal(bytes.length, archive.archive_bytes);
+              assert.equal(sha256(bytes), archive.archive_sha256);
+            }
+            return {name, bytes:bytes.length, sha256:sha256(bytes)};
+          });
+          const tag = api("repos/" + REPO + "/git/ref/tags/" + TAG);
+          assert.equal(tag.object.type, "commit");
+          assert.equal(tag.object.sha, SOURCE);
+          let release = api("repos/" + REPO + "/releases/384994031");
+          assert.equal(release.id, 384994031);
+          assert.equal(release.target_commitish, SOURCE);
+          assert.equal(release.body, fs.readFileSync(path.join(directory, "RELEASE_NOTES.md"), "utf8"));
+          assert.equal(release.name, "v1.1.3 · Reliable reports and cross-platform installs");
+          assert.equal(release.draft, true);
+          assert.equal(release.prerelease, false);
+          assert.equal(release.tag_name, TAG);
+          assert.deepEqual(release.assets.map(item => item.name).sort(), names.sort());
+          for (const file of expected) {
+            const matches = release.assets.filter(item => item.name === file.name);
+            assert.equal(matches.length, 1);
+            const asset = matches[0];
+            assert.equal(asset.state, "uploaded");
+            assert.equal(asset.size, file.bytes);
+            const bytes = execFileSync("gh", ["api", "repos/" + REPO + "/releases/assets/" + asset.id, "-H", "Accept: application/octet-stream"], {maxBuffer:32*1024*1024});
+            assert.equal(bytes.length, file.bytes);
+            assert.equal(sha256(bytes), file.sha256);
+            if (asset.digest) assert.equal(asset.digest, "sha256:" + file.sha256);
+            console.log("Verified uploaded draft asset: " + file.name);
+          }
+          execFileSync("gh", ["api", "repos/" + REPO + "/releases/" + release.id, "--method", "PATCH", "--input", "-"], {input:JSON.stringify({draft:false, make_latest:"true"}), stdio:["pipe","ignore","inherit"]});
+          release = api("repos/" + REPO + "/releases/tags/" + TAG);
+          assert.equal(release.draft, false);
+          assert.equal(release.prerelease, false);
+          assert.equal(api("repos/" + REPO + "/git/ref/tags/" + TAG).object.sha, SOURCE);
+          assert.equal(api("repos/" + REPO + "/releases/latest").id, release.id);
+          fs.writeFileSync("published-release.json", JSON.stringify({id:release.id, tag:TAG, source_sha:SOURCE, url:release.html_url, assets:expected}, null, 2) + "\n");
+          assert.equal(release.id, 384994031);
+          console.log("Published verified release: " + release.html_url);
+          
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: published-native-release-v1.1.3
+          path: published-release.json
+          if-no-files-found: error
