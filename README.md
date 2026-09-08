@@ -29,7 +29,7 @@
 
 Choose your platform. Native downloads are available for **Apple Silicon / ARM64 and Intel / AMD x64**.
 
-**Release status:** Native **v1.1.3** downloads are available. npm and Homebrew currently install **v1.1.2** while their package updates are prepared. Use a standalone install for the latest fixes.
+**Release status:** Native downloads and Homebrew install **v1.1.3**. npm currently installs **v1.1.2** while its package update awaits publication. Use the native Windows ZIP for the latest fixes.
 
 ### macOS
 
@@ -43,14 +43,21 @@ For a standalone install, follow the [macOS instructions](docs/installation.md#m
 
 ### Windows
 
-With Node.js installed, run this in **PowerShell** or **Command Prompt**:
+For **v1.1.3**, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run:
+
+```powershell
+.\turbotokens.exe doctor
+.\turbotokens.exe claude daily --last 7
+```
+
+The [Windows guide](docs/installation.md#windows) explains checksums, PATH, and WSL. No Node.js runtime is needed.
+
+With Node.js installed, npm currently provides **v1.1.2**. Run this in PowerShell or Command Prompt:
 
 ```powershell
 npm install -g turbotokens
 turbotokens --version
 ```
-
-For a native install without Node.js, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run `.\turbotokens.exe doctor`. The [Windows guide](docs/installation.md#windows) explains checksums, PATH, and WSL.
 
 ### Linux
 
