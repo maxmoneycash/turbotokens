@@ -1,0 +1,57 @@
+name: Refresh v1.1.3 installation and migration links
+on:
+  push:
+    branches: [validation/release-doc-links-v1.1.3]
+permissions:
+  contents: read
+jobs:
+  notes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Verify the release and point readers to merged channel guidance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 <<'PY'
+          import json, subprocess, tempfile, urllib.request
+          from pathlib import Path
+          repo = "maxmoneycash/turbotokens"
+          merged_sha = "63082eb6c2e9fdfd5ec8e38a42a76bf120b8d1fc"
+          source_sha = "27ceda8944e85429ddd8e62e650c7994459a9568"
+          def api(route):
+              return json.loads(subprocess.check_output(["gh", "api", route]))
+          pr = api("repos/" + repo + "/pulls/21")
+          assert pr["merged"] and pr["merge_commit_sha"] == merged_sha, "Expected reviewed package/docs merge"
+          tag = api("repos/" + repo + "/git/ref/tags/v1.1.3")
+          assert tag["object"]["type"] == "commit" and tag["object"]["sha"] == source_sha
+          release = api("repos/" + repo + "/releases/tags/v1.1.3")
+          assert release["id"] == 384994031 and not release["draft"] and not release["prerelease"]
+          request = urllib.request.Request("https://registry.npmjs.org/turbotokens/latest", headers={"User-Agent": "turbotokens-release-channel-check"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              npm_package = json.load(response)
+          assert npm_package["name"] == "turbotokens"
+          assert npm_package["version"] == "1.1.2", "Registry version changed; review install status before editing"
+          before_assets = [(a["id"], a["name"], a["size"], a["digest"]) for a in release["assets"]]
+          assert len(before_assets) == 9
+          before = release["body"]
+          after = before
+          for path in ["docs/installation.md", "docs/migrating-from-ccusage.md"]:
+              old = "https://github.com/" + repo + "/blob/" + source_sha + "/" + path
+              new = "https://github.com/" + repo + "/blob/" + merged_sha + "/" + path
+              assert after.count(old) == 1 or after.count(new) == 1, "Unexpected documentation link"
+              after = after.replace(old, new)
+          assert "Native downloads and Homebrew install v1.1.3." in after
+          assert "The npm registry still serves v1.1.2" in after
+          if before != after:
+              with tempfile.TemporaryDirectory(prefix="release-doc-links-") as temporary:
+                  notes = Path(temporary) / "notes.md"
+                  notes.write_text(after, encoding="utf-8")
+                  subprocess.run(["gh", "release", "edit", "v1.1.3", "--repo", repo, "--notes-file", str(notes)], check=True)
+          updated = api("repos/" + repo + "/releases/tags/v1.1.3")
+          assert updated["id"] == release["id"] and updated["body"] == after
+          assert [(a["id"], a["name"], a["size"], a["digest"]) for a in updated["assets"]] == before_assets
+          print(json.dumps({"release": updated["html_url"], "source_sha": source_sha, "documentation_sha": merged_sha, "npm_registry_version": npm_package["version"], "unchanged_assets": len(before_assets)}))
+          PY
