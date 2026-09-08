@@ -4,8 +4,9 @@ Choose [macOS](#macos), [Windows](#windows), or [Linux](#linux). Release binarie
 are available for x64 and ARM64. The native install runs without Node.js; npm
 downloads the same executable and launches it through Node.
 
-**Currently published: v1.1.2.** The v1.1.3 fixes and static Linux builds on `main`
-are awaiting publication. The version-pinning examples below use the available release.
+**Native release: v1.1.3.** npm and Homebrew currently install v1.1.2 while their
+package updates are prepared. Use the standalone macOS/Linux installer or the
+Windows ZIP for v1.1.3. The npm pin below names its currently available version.
 
 ## macOS
 
@@ -142,16 +143,16 @@ for mount paths and cross-filesystem behavior.
 
 ## Linux
 
-**The v1.1.3 static Linux builds are awaiting publication.** Their release
-checks pass on Ubuntu 22.04, Debian 12, and Alpine 3.22 for x64 and ARM64. See
+**The v1.1.3 Linux downloads are static builds.** Their release checks pass on
+Ubuntu 22.04, Debian 12, and Alpine 3.22 for x64 and ARM64. See
 [Linux release validation](../packaging/linux.md) for the checks and build
 instructions.
 
-The current v1.1.2 Linux binaries require **glibc 2.39**, including those downloaded
-by its npm package or Homebrew formula. The install command below therefore
-requires a compatible system, such as Ubuntu 24.04.
+Older v1.1.2 Linux binaries require **glibc 2.39**, including those still downloaded
+by npm or Homebrew until their package updates are published. The standalone
+installer below downloads the static v1.1.3 release.
 
-On a compatible x64 or ARM64 system, install into your home directory:
+On x64 or ARM64, install into your home directory:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/maxmoneycash/turbotokens/main/install.sh | env TURBOTOKENS_INSTALL_DIR="$HOME/.local/bin" sh
@@ -239,11 +240,11 @@ npx --yes --ignore-scripts=false turbotokens@1.1.2 --version
 On macOS or Linux, pin the downloaded binary with `TURBOTOKENS_VERSION`:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/maxmoneycash/turbotokens/main/install.sh | env TURBOTOKENS_VERSION=v1.1.2 TURBOTOKENS_INSTALL_DIR="$HOME/.local/bin" sh
+curl -fsSL https://raw.githubusercontent.com/maxmoneycash/turbotokens/main/install.sh | env TURBOTOKENS_VERSION=v1.1.3 TURBOTOKENS_INSTALL_DIR="$HOME/.local/bin" sh
 ```
 
 This pins the release binary; the installer script still comes from `main`.
 For a native Windows pin, keep the ZIP and `SHA256SUMS` from the chosen
-[versioned release](https://github.com/maxmoneycash/turbotokens/releases/tag/v1.1.2).
+[versioned release](https://github.com/maxmoneycash/turbotokens/releases/tag/v1.1.3).
 Version pins retain that release's platform requirements. In particular, the
 v1.1.2 Linux binaries require glibc 2.39.

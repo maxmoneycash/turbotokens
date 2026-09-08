@@ -29,7 +29,7 @@
 
 Choose your platform. Native downloads are available for **Apple Silicon / ARM64 and Intel / AMD x64**.
 
-**Release status:** npm, Homebrew, and direct downloads currently install **v1.1.2**. The v1.1.3 fixes and static Linux builds on `main` are awaiting publication.
+**Release status:** Native **v1.1.3** downloads are available. npm and Homebrew currently install **v1.1.2** while their package updates are prepared. Use a standalone install for the latest fixes.
 
 ### macOS
 
@@ -66,7 +66,7 @@ The installer selects x64 or ARM64 and prints the install location. If it uses `
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The v1.1.3 static Linux builds passed tests on Ubuntu 22.04, Debian 12, and Alpine 3.22 and are awaiting publication. Current v1.1.2 downloads require **glibc 2.39**. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
+The v1.1.3 Linux downloads are static builds tested on Ubuntu 22.04, Debian 12, and Alpine 3.22. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
 
 ### Run your first report
 
