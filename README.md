@@ -48,7 +48,7 @@ npm install -g turbotokens
 turbotokens --version
 ```
 
-For a native install without Node.js, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run `./turbotokens.exe doctor`. The [Windows guide](docs/installation.md#windows) explains checksums, PATH, and WSL.
+For a native install without Node.js, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run `.\turbotokens.exe doctor`. The [Windows guide](docs/installation.md#windows) explains checksums, PATH, and WSL.
 
 ### Linux
 
@@ -70,13 +70,16 @@ The current v1.1.2 Linux release requires glibc 2.39. See [Linux instructions](d
 
 These commands work on all three platforms after installation:
 
-```sh
+```text
 turbotokens --version
-turbotokens doctor                  # Find your agents' logs
-turbotokens                         # Daily usage across detected agents
-turbotokens claude daily --last 7    # Claude usage over the last seven days
-turbotokens codex daily              # Focus on Codex
+turbotokens doctor
+turbotokens
+turbotokens claude daily --last 7
+turbotokens codex daily
 ```
+
+`doctor` finds your agents' logs. Plain `turbotokens` shows daily usage across
+agents; name `claude` or `codex` to focus on one source.
 
 You can also try **`npx turbotokens`** on any platform with Node.js. The npm package downloads and launches the native executable; keep npm installation scripts enabled. [All install and upgrade options →](docs/installation.md)
 
