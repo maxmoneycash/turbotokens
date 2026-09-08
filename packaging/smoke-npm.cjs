@@ -27,19 +27,11 @@ try {
   assert(packed.files.some(file => file.path === 'bin/turbotokens.js'));
   assert(packed.files.some(file => file.path === 'LICENSE'));
   assert(!packed.files.some(file => file.path.startsWith('vendor/')));
-  run(npm, ['install', '--global=false', '--prefix', temporary, '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)]);
+  // npm 6 treats --prefix as a global install on Windows even with --global=false.
+  // Use a real project directory so every supported npm version creates a local shim.
+  fs.writeFileSync(path.join(temporary, 'package.json'), JSON.stringify({ name: 'turbotokens-smoke', private: true }));
+  run(npm, ['install', '--global=false', '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)], { cwd: temporary });
   const executable = path.join(temporary, 'node_modules', '.bin', process.platform === 'win32' ? 'turbotokens.cmd' : 'turbotokens');
-  if (process.platform === 'win32') {
-    const binDirectory = path.dirname(executable);
-    console.log('Windows npm install layout:', JSON.stringify({
-      root: fs.readdirSync(temporary),
-      bin: fs.existsSync(binDirectory) ? fs.readdirSync(binDirectory) : null,
-      shim: fs.existsSync(executable) ? fs.readFileSync(executable, 'utf8') : null,
-      globalShim: fs.existsSync(path.join(temporary, 'turbotokens.cmd'))
-        ? fs.readFileSync(path.join(temporary, 'turbotokens.cmd'), 'utf8') : null,
-      configuredGlobal: run(npm, ['config', 'get', 'global']).trim(),
-    }));
-  }
   const version = require('../npm/package.json').version;
   assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
   // The shim downloads the published GitHub release, not this checkout.
