@@ -4,8 +4,10 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import urllib.error
 import urllib.request
 
 FILENAME = "model_prices_and_context_window.json"
@@ -24,9 +26,23 @@ def pricing_url(commit):
     return "https://raw.githubusercontent.com/BerriAI/litellm/" + commit_sha(commit) + "/" + FILENAME
 
 
+class NoAuthenticatedRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        raise urllib.error.HTTPError(
+            request.full_url, code, "authenticated commit lookup must not redirect",
+            headers, response)
+
+
 def download(url):
-    request = urllib.request.Request(url, headers={"User-Agent": "turbotokens-release"})
-    with urllib.request.urlopen(request, timeout=30) as response:
+    headers = {"User-Agent": "turbotokens-release"}
+    token = os.environ.get("GH_TOKEN") if url == LATEST_COMMIT else None
+    if token:
+        headers["Authorization"] = "Bearer " + token
+        open_request = urllib.request.build_opener(NoAuthenticatedRedirect).open
+    else:
+        open_request = urllib.request.urlopen
+    request = urllib.request.Request(url, headers=headers)
+    with open_request(request, timeout=30) as response:
         if not response.geturl().startswith("https://"):
             raise ValueError("pricing download redirected outside HTTPS")
         data = response.read(MAX_BYTES + 1)

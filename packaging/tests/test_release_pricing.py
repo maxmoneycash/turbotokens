@@ -1,5 +1,6 @@
 """Validate release input identity and reject modified pricing before building."""
 import hashlib
+import io
 import importlib.util
 import json
 from pathlib import Path
@@ -32,6 +33,45 @@ class ReleasePricingTests(unittest.TestCase):
         manifest = json.loads(path.read_text())
         change(manifest)
         path.write_text(json.dumps(manifest))
+
+    def test_authenticates_only_the_github_api_lookup(self):
+        response = io.BytesIO(json.dumps({"sha": COMMIT}).encode())
+        response.geturl = lambda: pricing.LATEST_COMMIT
+        with patch.dict(pricing.os.environ, {"GH_TOKEN": "test-only-token"}), \
+                patch.object(pricing.urllib.request, "build_opener") as builder, \
+                patch.object(pricing.urllib.request, "urlopen") as unauthenticated:
+            builder.return_value.open.return_value = response
+            data = pricing.download(pricing.LATEST_COMMIT)
+        self.assertEqual(json.loads(data)["sha"], COMMIT)
+        builder.assert_called_once_with(pricing.NoAuthenticatedRedirect)
+        request = builder.return_value.open.call_args.args[0]
+        self.assertEqual(request.full_url, pricing.LATEST_COMMIT)
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-only-token")
+        self.assertEqual(builder.return_value.open.call_args.kwargs["timeout"], 30)
+        unauthenticated.assert_not_called()
+
+    def test_never_sends_the_workflow_token_with_pricing_data_requests(self):
+        for url in (pricing.pricing_url(COMMIT), "https://example.com/pricing.json"):
+            with self.subTest(url=url):
+                response = io.BytesIO(PAYLOAD)
+                response.geturl = lambda: url
+                with patch.dict(pricing.os.environ, {"GH_TOKEN": "test-only-token"}), \
+                        patch.object(pricing.urllib.request, "urlopen", return_value=response) as fetch, \
+                        patch.object(pricing.urllib.request, "build_opener") as authenticated:
+                    self.assertEqual(pricing.download(url), PAYLOAD)
+                request = fetch.call_args.args[0]
+                self.assertIsNone(request.get_header("Authorization"))
+                authenticated.assert_not_called()
+
+    def test_authenticated_redirects_cannot_forward_the_token(self):
+        request = pricing.urllib.request.Request(
+            pricing.LATEST_COMMIT, headers={"Authorization": "Bearer test-only-token"})
+        handler = pricing.NoAuthenticatedRedirect()
+        for code in (301, 302, 303, 307, 308):
+            with self.subTest(code=code), self.assertRaisesRegex(
+                    pricing.urllib.error.HTTPError, "must not redirect"):
+                handler.redirect_request(request, None, code, "Redirect", {},
+                                         "https://example.com/collect")
 
     def test_resolves_once_then_downloads_an_immutable_url(self):
         with patch.object(pricing, "download",
