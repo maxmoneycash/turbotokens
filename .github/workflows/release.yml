@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/release.yml
       - packaging/smoke-linux.py
+      - packaging/smoke-native.py
       - packaging/RELEASE_README.md
       - rust/**
       - rust-toolchain.toml
@@ -83,6 +84,27 @@ jobs:
           if [[ "$RUNNER_OS" == Windows ]]; then binary="$binary.exe"; fi
           test "$("$binary" --version)" = "turbotokens $version"
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Verify native reports and cache updates
+        id: native_smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary="$binary.exe"
+            python_command=python
+          fi
+          "$python_command" packaging/smoke-native.py "$binary" --output "native-smoke-${{ matrix.target }}.json"
+
+      - name: Keep native smoke evidence
+        if: always() && steps.native_smoke.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-smoke-${{ matrix.target }}
+          path: native-smoke-${{ matrix.target }}*.json
+          if-no-files-found: warn
 
       - name: Verify static Linux linkage and container reports
         if: runner.os == 'Linux'
