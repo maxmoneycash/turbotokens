@@ -171,6 +171,12 @@ turbotokens daemon stop
 
 See `turbotokens daemon --help` for its lifecycle commands.
 
+The daemon uses a private `~/.turbotokens/daemon` directory on Unix. It serves a
+report only when the log directories, cost mode, effective timezone, offline
+setting, and pricing overrides match; other requests load directly. `daemon stop`
+requires a responding daemon whose socket and PID record agree. Files left by
+older versions in the temporary directory are ignored.
+
 ## Shell completion
 
 ```sh

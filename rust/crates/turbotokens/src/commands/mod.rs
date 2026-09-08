@@ -12,6 +12,8 @@ use serde_json::json;
 mod completions;
 mod daemon;
 mod daemon_client;
+#[cfg(unix)]
+mod daemon_paths;
 mod doctor;
 mod heatmap;
 mod import;

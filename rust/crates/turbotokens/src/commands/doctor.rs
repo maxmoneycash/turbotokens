@@ -257,7 +257,10 @@ fn check_cache_root(root: CacheRoot) -> Check {
 
 #[cfg(unix)]
 fn check_daemon() -> Check {
-    let socket = env::temp_dir().join("turbotokens-daemon.sock");
+    let socket = match super::daemon_client::socket_path() {
+        Ok(socket) => socket,
+        Err(error) => return Check::new("daemon", Status::Info, format!("not available: {error}")),
+    };
     if !socket.exists() {
         return Check::new(
             "daemon",
@@ -266,18 +269,22 @@ fn check_daemon() -> Check {
         )
         .with_hint("Optional: start with `turbotokens daemon start` for near-instant reports.");
     }
-    match std::os::unix::net::UnixStream::connect(&socket) {
-        Ok(_) => Check::new(
+    match super::daemon_client::request_response(
+        &socket,
+        &super::daemon_client::DaemonRequest::ping(),
+        super::daemon_client::DAEMON_READ_TIMEOUT,
+    ) {
+        Ok(response) if response.is_current() => Check::new(
             "daemon",
             Status::Ok,
             format!("responding at {}", socket.display()),
         ),
-        Err(_) => Check::new(
+        _ => Check::new(
             "daemon",
             Status::Warn,
             format!("socket at {} is not responding", socket.display()),
         )
-        .with_hint("Remove the stale socket and restart the daemon."),
+        .with_hint("Run `turbotokens daemon run` to check the daemon's startup diagnostics."),
     }
 }
 

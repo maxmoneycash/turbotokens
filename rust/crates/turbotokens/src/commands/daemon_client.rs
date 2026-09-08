@@ -21,6 +21,9 @@ use turbotokens_cli::PricingOverride;
 
 use crate::{UsageSummary, cli::SharedArgs};
 
+#[cfg(any(unix, test))]
+pub(crate) const DAEMON_PROTOCOL: &str = "turbotokens-daemon-v1";
+
 /// Reads may legitimately wait behind an in-flight query or poll; anything
 /// longer means the daemon is wedged and the caller should fall back to
 /// loading directly.
@@ -36,7 +39,7 @@ pub(crate) fn try_daily_from_daemon(
     project: Option<&str>,
     group_by_project: bool,
 ) -> Option<Vec<UsageSummary>> {
-    try_daily_from_socket(&socket_path(), shared, project, group_by_project)
+    try_daily_from_socket(&socket_path().ok()?, shared, project, group_by_project)
 }
 
 #[cfg(not(unix))]
@@ -50,8 +53,8 @@ pub(crate) fn try_daily_from_daemon(
 }
 
 #[cfg(unix)]
-pub(crate) fn socket_path() -> std::path::PathBuf {
-    std::env::temp_dir().join("turbotokens-daemon.sock")
+pub(crate) fn socket_path() -> std::io::Result<std::path::PathBuf> {
+    Ok(super::daemon_paths::DaemonPaths::resolve(false)?.socket)
 }
 
 #[cfg(unix)]
@@ -81,9 +84,10 @@ pub(crate) fn try_daily_from_socket_with_paths(
         command: "daily".to_string(),
         project: project.map(str::to_string),
         group_by_project,
+        expected_pid: None,
     };
     let response = request_response(socket, &request, DAEMON_READ_TIMEOUT).ok()?;
-    if !response.ok {
+    if !response.is_current() {
         return None;
     }
     if !response.started_with?.compatible_with(shared, source_paths) {
@@ -101,7 +105,15 @@ pub(crate) fn request_response(
 ) -> std::io::Result<DaemonResponse> {
     use std::io::{BufRead, BufReader, Write};
 
+    use std::os::unix::fs::FileTypeExt;
     use std::os::unix::net::UnixStream;
+
+    if !std::fs::symlink_metadata(socket)?.file_type().is_socket() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "daemon path must be a Unix socket, without links",
+        ));
+    }
 
     let mut stream = UnixStream::connect(socket)?;
     stream.set_read_timeout(Some(timeout))?;
@@ -129,6 +141,12 @@ pub(crate) struct DaemonRequest {
     pub(crate) project: Option<String>,
     #[serde(rename = "groupByProject", default)]
     pub(crate) group_by_project: bool,
+    #[serde(
+        rename = "expectedPid",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub(crate) expected_pid: Option<u32>,
 }
 
 #[cfg(any(unix, test))]
@@ -138,14 +156,16 @@ impl DaemonRequest {
             command: "ping".to_string(),
             project: None,
             group_by_project: false,
+            expected_pid: None,
         }
     }
 
-    pub(crate) fn shutdown() -> Self {
+    pub(crate) fn shutdown(pid: u32) -> Self {
         Self {
             command: "shutdown".to_string(),
             project: None,
             group_by_project: false,
+            expected_pid: Some(pid),
         }
     }
 }
@@ -154,6 +174,8 @@ impl DaemonRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct DaemonResponse {
     pub(crate) ok: bool,
+    #[serde(default)]
+    pub(crate) protocol: Option<String>,
     #[serde(default)]
     pub(crate) pid: Option<u32>,
     #[serde(rename = "uptimeMs", default)]
@@ -170,12 +192,21 @@ pub(crate) struct DaemonResponse {
     pub(crate) error: Option<String>,
 }
 
+#[cfg(any(unix, test))]
+impl DaemonResponse {
+    pub(crate) fn is_current(&self) -> bool {
+        self.ok && self.protocol.as_deref() == Some(DAEMON_PROTOCOL)
+    }
+}
+
 /// The load-affecting options and directories represented by the daemon.
 /// Missing source identity from an older daemon requires a direct load.
 #[cfg(any(unix, test))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct StartedWith {
     pub(crate) timezone: Option<String>,
+    #[serde(rename = "resolvedTimezone", default)]
+    pub(crate) resolved_timezone: Option<String>,
     pub(crate) mode: String,
     pub(crate) offline: bool,
     #[serde(rename = "pricingOverrides", default)]
@@ -189,6 +220,9 @@ impl StartedWith {
     pub(crate) fn from_shared(shared: &SharedArgs, source_paths: &[PathBuf]) -> Self {
         Self {
             timezone: shared.timezone.clone(),
+            resolved_timezone: turbotokens_core::date_utils::timezone_identity(
+                shared.timezone.as_deref(),
+            ),
             mode: cost_mode_name(shared.mode).to_string(),
             offline: shared.offline,
             pricing_overrides: pricing_overrides_json(shared),
@@ -198,8 +232,11 @@ impl StartedWith {
 
     pub(crate) fn compatible_with(&self, shared: &SharedArgs, source_paths: &[PathBuf]) -> bool {
         self.timezone == shared.timezone
+            && self.resolved_timezone.is_some()
+            && self.resolved_timezone
+                == turbotokens_core::date_utils::timezone_identity(shared.timezone.as_deref())
             && self.offline == shared.offline
-            && modes_compatible(shared.mode, &self.mode)
+            && self.mode == cost_mode_name(shared.mode)
             && self.pricing_overrides == pricing_overrides_json(shared)
             && self.source_paths.is_some()
             && self.source_paths == normalized_source_paths(source_paths)
@@ -224,21 +261,6 @@ pub(crate) fn cost_mode_name(mode: crate::cli::CostMode) -> &'static str {
         crate::cli::CostMode::Auto => "auto",
         crate::cli::CostMode::Calculate => "calculate",
         crate::cli::CostMode::Display => "display",
-    }
-}
-
-/// Auto and Calculate both price from the same cost data; Display skips
-/// pricing entirely and only matches Display.
-#[cfg(any(unix, test))]
-fn modes_compatible(client: crate::cli::CostMode, daemon_mode: &str) -> bool {
-    match (client, daemon_mode) {
-        (crate::cli::CostMode::Display, "display") => true,
-        (crate::cli::CostMode::Display, _) => false,
-        (_, "display") => false,
-        (crate::cli::CostMode::Auto | crate::cli::CostMode::Calculate, "auto" | "calculate") => {
-            true
-        }
-        _ => false,
     }
 }
 
@@ -313,14 +335,50 @@ mod tests {
     }
 
     #[test]
-    fn treats_auto_and_calculate_as_compatible_but_not_display() {
-        let auto = StartedWith::from_shared(&shared_with(CostMode::Auto, true, None), &[]);
-        assert!(auto.compatible_with(&shared_with(CostMode::Calculate, true, None), &[]));
-        assert!(!auto.compatible_with(&shared_with(CostMode::Display, true, None), &[]));
+    fn cost_modes_require_exact_matches() {
+        // Auto trusts costUSD when present; Calculate recomputes it. A single
+        // recorded cost can therefore make every pair of modes disagree.
+        let modes = [CostMode::Auto, CostMode::Calculate, CostMode::Display];
+        for daemon_mode in modes {
+            let daemon =
+                StartedWith::from_shared(&shared_with(daemon_mode, true, Some("UTC")), &[]);
+            for client_mode in modes {
+                let client = shared_with(client_mode, true, Some("UTC"));
+                assert_eq!(
+                    daemon.compatible_with(&client, &[]),
+                    daemon_mode == client_mode
+                );
+            }
+        }
+    }
 
-        let display = StartedWith::from_shared(&shared_with(CostMode::Display, true, None), &[]);
-        assert!(display.compatible_with(&shared_with(CostMode::Display, true, None), &[]));
-        assert!(!display.compatible_with(&shared_with(CostMode::Auto, true, None), &[]));
+    #[test]
+    fn omitted_timezone_still_requires_matching_resolved_identity() {
+        let shared = shared_with(CostMode::Auto, true, None);
+        let mut daemon = StartedWith::from_shared(&shared, &[]);
+        assert_eq!(
+            daemon.compatible_with(&shared, &[]),
+            daemon.resolved_timezone.is_some()
+        );
+        let other_zone = if daemon.resolved_timezone.as_deref() == Some("UTC") {
+            "America/Los_Angeles"
+        } else {
+            "UTC"
+        };
+        daemon.resolved_timezone =
+            turbotokens_core::date_utils::timezone_identity(Some(other_zone));
+        assert!(!daemon.compatible_with(&shared, &[]));
+        daemon.resolved_timezone = None;
+        assert!(!daemon.compatible_with(&shared, &[]));
+    }
+
+    #[test]
+    fn rejects_legacy_daemons_without_effective_timezone_identity() {
+        let shared = shared_with(CostMode::Display, true, Some("UTC"));
+        let legacy: StartedWith = serde_json::from_str(
+            r#"{"timezone":"UTC","mode":"display","offline":true,"pricingOverrides":{},"sourcePaths":[]}"#,
+        ).unwrap();
+        assert!(!legacy.compatible_with(&shared, &[]));
     }
 
     #[test]
