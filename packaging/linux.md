@@ -1,17 +1,18 @@
 # Linux release validation
 
-The release workflow builds native x64 and arm64 binaries with musl, then rejects
+Starting with v1.1.3, the release workflow builds native x64 and arm64 binaries
+with musl, then rejects
 any executable that requires a dynamic loader or shared library. The archive names
 remain `turbotokens-linux-x64.tar.gz` and `turbotokens-linux-arm64.tar.gz`, so the
 npm package, Homebrew formula, and shell installer can use the same asset lookup.
 
 The v1.1.2 Linux archives require glibc 2.39. Changing the workflow does not change
-those published archives. A new release must pass the checks below before its
+those published archives. Each new release must pass the checks below before its
 checksums are added to the install packages.
 
-The [2026-09-08 validation run](https://github.com/maxmoneycash/turbotokens/actions/runs/34217300332)
+The [2026-09-08 validation run](https://github.com/maxmoneycash/turbotokens/actions/runs/34226344048)
 passed static-linkage and container-report checks for both Linux architectures
-at commit `8b137a80`, covering all six architecture/distribution combinations.
+at commit `55431b46`, covering all six architecture/distribution combinations.
 
 `packaging/smoke-linux.py` runs each new binary in Ubuntu 22.04, Debian 12, and
 Alpine 3.22 containers. It verifies the exact version, reads a synthetic Claude

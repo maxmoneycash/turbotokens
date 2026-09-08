@@ -64,7 +64,7 @@ The installer selects x64 or ARM64 and prints the install location. If it uses `
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The current v1.1.2 Linux release requires glibc 2.39. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
+Linux releases from v1.1.3 use static binaries tested on Ubuntu 22.04, Debian 12, and Alpine 3.22. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
 
 ### Run your first report
 
