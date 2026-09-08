@@ -83,18 +83,17 @@ from model rates. Neither estimate is a subscription quota or a provider bill.
 
 ## Verified app integrations
 
-These 2026-09-08 checks compare the **v1.1.3 candidate** from
-[`c0de9078`](https://github.com/maxmoneycash/turbotokens/commit/c0de907857b6cd0c536afa688d3697e1a23a33c3)
-with published **ccusage 20.0.20**. Each run verifies the downloaded candidate
-artifact's SHA-256 and retains test logs and binary hashes.
+These 2026-09-08 checks compare the **published [v1.1.3 release](https://github.com/maxmoneycash/turbotokens/releases/tag/v1.1.3)**
+with published **ccusage 20.0.20**. Each run verifies the downloaded release
+archive and executable against recorded SHA-256 hashes and retains test logs.
 
 | Proposed integration | What is checked | Native platforms | Result |
 | --- | --- | --- | --- |
-| [token-history](https://github.com/keli-wen/token-history/pull/1) | Claude/Codex snapshots, token and cost fields, dates, timezone, and failure handling | Linux and macOS, x64 and ARM64; Python 3.12 | [27 passed](https://github.com/maxmoneycash/token-history/actions/runs/34237762970) |
-| [aimonitor](https://github.com/Loksly/aimonitor/pull/1) | Literal executable paths and matching API/max usage results | Linux x64 and ARM64; Node 24.5.0 | [90 passed](https://github.com/maxmoneycash/aimonitor/actions/runs/34235889150) |
-| [ccfleet](https://github.com/tangshunpu/ccfleet/pull/1) | Daily, monthly, session, and block reports through local and cached-mirror execution | Linux x64 and ARM64; Node 20.20.2 and 24.5.0 | [8 passed](https://github.com/maxmoneycash/ccfleet/actions/runs/34235895481) |
+| [token-history](https://github.com/keli-wen/token-history/pull/1) | Claude/Codex snapshots, token and cost fields, dates, timezone, and failure handling | Linux and macOS, x64 and ARM64; Python 3.12 | [27 passed](https://github.com/maxmoneycash/token-history/actions/runs/34267667203) |
+| [aimonitor](https://github.com/Loksly/aimonitor/pull/1) | Literal executable paths and matching API/max usage results | Linux x64 and ARM64; Node 24.5.0 | [90 passed](https://github.com/maxmoneycash/aimonitor/actions/runs/34267670974) |
+| [ccfleet](https://github.com/tangshunpu/ccfleet/pull/1) | Daily, monthly, session, and block reports through local and cached-mirror execution | Linux x64 and ARM64; Node 20.20.2 and 24.5.0 | [8 passed](https://github.com/maxmoneycash/ccfleet/actions/runs/34267674385) |
 
-All listed runs have zero skipped tests. Histories and configuration are
+The test counts apply to each job in the linked run; all have zero skipped tests. Histories and configuration are
 synthetic; pricing is offline. The proposals are under review. The checks cover
 the listed collector paths; SSH transport and physical LCD hardware are outside
 their scope. See [installation](installation.md) for currently published versions.
