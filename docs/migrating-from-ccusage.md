@@ -6,16 +6,17 @@ not expose the JavaScript APIs from older ccusage packages.
 
 ## Install alongside ccusage
 
-```sh
-brew install maxmoneycash/tap/turbotokens
-# Or: npm install -g turbotokens
+Follow the [macOS](installation.md#macos), [Windows](installation.md#windows),
+or [Linux](installation.md#linux) instructions, then verify the installation:
+
+```text
 turbotokens --version
 turbotokens claude daily --offline --json
 ```
 
 Both tools read existing agent logs. You can keep ccusage installed and switch
 back without converting those logs. For deployed integrations, pin a tested
-release and verify its archive checksum. See the [installation details](../packaging/README.md).
+release and verify its archive checksum. See the [installation details](installation.md).
 
 ## Choose the same source
 
@@ -121,13 +122,25 @@ turbotokens discovers `.turbotokens/turbotokens.json` in the working directory
 and `turbotokens.json` in Claude config directories. It does not automatically
 rename or migrate ccusage config files. Inspect supported options before
 copying a config, or pass a reviewed file with `--config /path/to/config.json`.
-An empty `{}` file keeps user defaults out of a controlled comparison.
+An empty `{}` file keeps user defaults out of a controlled comparison. An explicit
+`--config` that cannot be read or is not a JSON object exits with an error before
+a report is printed. Surface that error in your app; do not replace it with zero
+usage.
 
 `CLAUDE_CONFIG_DIR` chooses Claude history directories. The
 [adapter guides](../rust/adapters/README.md) describe other sources.
-`TURBOTOKENS_CACHE_DIR` chooses the Claude parse cache, and
-`TURBOTOKENS_CACHE=off` bypasses it for diagnosis. Give independent users their
-own cache directories. The cached daily speed measurements are Claude-specific.
+`TURBOTOKENS_CACHE_DIR` overrides the Claude parse and report cache location.
+Without an override, each user gets a platform cache directory:
+
+| Platform | Default cache directory |
+| --- | --- |
+| macOS | `~/Library/Caches/turbotokens` |
+| Windows | `%LOCALAPPDATA%\turbotokens` |
+| Linux | `$XDG_CACHE_HOME/turbotokens`, or `~/.cache/turbotokens` |
+
+Give independent users separate directories if overriding this location.
+`TURBOTOKENS_CACHE=off` bypasses both caches, even when a cache directory is set.
+The cached daily speed measurements are Claude-specific.
 
 Local reports can use embedded or cached pricing with `--offline` where the
 command supports it. Installation downloads, refreshed pricing, subscription
