@@ -1,8 +1,8 @@
 {
-  "turbotokens-linux-arm64.tar.gz": "f58e87a927b07bd5b8794b69b8e15cb93ad2ee40c9c0a6a9b67b32309809d12d",
-  "turbotokens-linux-x64.tar.gz": "70dcf55af6cd4ddfb0f6841c3ff685f19d094d37d3f4858c7b8d8283c1b37ab9",
-  "turbotokens-macos-arm64.tar.gz": "4434d75a200373175b2613ca0c626b67ed982c72eade337a16d976e8a5a99825",
-  "turbotokens-macos-x64.tar.gz": "27fd512fff67939579fe3baa0f260121deae08cfd389c582113888683615f475",
-  "turbotokens-windows-arm64.zip": "57037230a6ea96d13fe72d7578370ec0f369ef584fc2ff689b51e5c20cbe2473",
-  "turbotokens-windows-x64.zip": "b2aa3dfd8b87b0837fc4d66a689fa2b99de338fb788b5ee0da62e21a3097e1d3"
+  "turbotokens-linux-arm64.tar.gz": "7256ba213586a8a37512b3dee112a63c868accd4af9166883ced8c74f4b924fe",
+  "turbotokens-linux-x64.tar.gz": "3e024cbbd916e037d5073149a92843960e2871ab8a5d5270ce90d593235f25a3",
+  "turbotokens-macos-arm64.tar.gz": "e0ebdb307c70edb437ea23e98c2579b6747eefe03726174ce11f69f779768659",
+  "turbotokens-macos-x64.tar.gz": "517cd526ee149e00e1ca6d29069cac0414e868f3202070b11c1717c619bbc811",
+  "turbotokens-windows-arm64.zip": "c4cbf294acea7cd3e392f0bbb490ed31baa912a3535077d38dc960f4afd7415b",
+  "turbotokens-windows-x64.zip": "a12a578e9e7bd9955e0df95693d2d772a8774f399008694ed0da083e76950d85"
 }

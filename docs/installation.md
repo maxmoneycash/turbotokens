@@ -4,9 +4,9 @@ Choose [macOS](#macos), [Windows](#windows), or [Linux](#linux). Release binarie
 are available for x64 and ARM64. The native install runs without Node.js; npm
 downloads the same executable and launches it through Node.
 
-**Native release: v1.1.3.** npm and Homebrew currently install v1.1.2 while their
-package updates are prepared. Use the standalone macOS/Linux installer or the
-Windows ZIP for v1.1.3. The npm pin below names its currently available version.
+**Native downloads and Homebrew: v1.1.3.** npm currently installs v1.1.2 while
+its package update awaits publication. Use the Windows ZIP for v1.1.3 on Windows.
+The npm pin below names its currently available version.
 
 ## macOS
 
@@ -29,41 +29,6 @@ Then [add the directory to your shell's PATH](#shell-path) and run your
 [first report](#first-report).
 
 ## Windows
-
-### Install with npm
-
-Install a supported [Node.js LTS release](https://nodejs.org/en/download), then
-open a new **PowerShell** or **Command Prompt** window:
-
-```text
-npm install -g turbotokens
-turbotokens --version
-turbotokens doctor
-```
-
-Keep npm installation scripts enabled: the package's `postinstall` step downloads
-the executable. If it reports a missing binary, reinstall with
-`npm install -g turbotokens --ignore-scripts=false`. The installer also needs
-`tar.exe`; if that command is unavailable, use the native ZIP below.
-
-If a v1.1.2 npm install reports `tar: Cannot connect to C`, use the native ZIP
-below. Git Bash or another PATH override can select an incompatible `tar`.
-The v1.1.3 installer prefers Windows' native extractor when available, and falls
-back to `tar` on PATH when it is absent.
-
-If PowerShell reports that `npm.ps1` or `turbotokens.ps1` cannot run because scripts
-are disabled, use npm's Command Prompt shims directly:
-
-```powershell
-npm.cmd install -g turbotokens
-turbotokens.cmd --version
-turbotokens.cmd doctor
-```
-
-If the command is still missing, run `npm.cmd config get prefix`. Add the printed
-directory to your user PATH using the [steps below](#windows-path), then reopen
-your terminal. npm places its Windows command shims directly in that
-[prefix directory](https://docs.npmjs.com/cli/v11/configuring-npm/folders/).
 
 ### Install the native ZIP
 
@@ -103,6 +68,43 @@ The archive contains `turbotokens.exe`, `README.md`, and `LICENSE` directly at
 its root. PowerShell requires the
 [`.\` prefix](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_command_precedence)
 when running an executable from the current directory.
+
+### Install with npm
+
+The npm channel currently installs **v1.1.2**. Use the native ZIP above for v1.1.3.
+
+Install a supported [Node.js LTS release](https://nodejs.org/en/download), then
+open a new **PowerShell** or **Command Prompt** window:
+
+```text
+npm install -g turbotokens
+turbotokens --version
+turbotokens doctor
+```
+
+Keep npm installation scripts enabled: the package's `postinstall` step downloads
+the executable. If it reports a missing binary, reinstall with
+`npm install -g turbotokens --ignore-scripts=false`. The installer also needs
+`tar.exe`; if that command is unavailable, use the native ZIP below.
+
+If a v1.1.2 npm install reports `tar: Cannot connect to C`, use the native ZIP
+below. Git Bash or another PATH override can select an incompatible `tar`.
+The v1.1.3 installer prefers Windows' native extractor when available, and falls
+back to `tar` on PATH when it is absent.
+
+If PowerShell reports that `npm.ps1` or `turbotokens.ps1` cannot run because scripts
+are disabled, use npm's Command Prompt shims directly:
+
+```powershell
+npm.cmd install -g turbotokens
+turbotokens.cmd --version
+turbotokens.cmd doctor
+```
+
+If the command is still missing, run `npm.cmd config get prefix`. Add the printed
+directory to your user PATH using the [steps below](#windows-path), then reopen
+your terminal. npm places its Windows command shims directly in that
+[prefix directory](https://docs.npmjs.com/cli/v11/configuring-npm/folders/).
 
 ### Windows PATH
 

@@ -16,6 +16,8 @@ Or run a report with `npx turbotokens`.
 
 This package installs the native Rust binary for your OS and architecture, verifies its SHA-256 checksum, and exposes the `turbotokens` command. Keep npm installation scripts enabled. macOS, Linux, and Windows have both arm64 and x64 release builds.
 
+**Replacing ccusage in an app?** Use an explicit agent: `turbotokens claude daily --json` or `turbotokens codex daily --json`. Plain `turbotokens daily` combines agents and has a different JSON shape. This package exposes a CLI; it does not replace JavaScript imports. See the [migration guide](https://github.com/maxmoneycash/turbotokens/blob/main/docs/migrating-from-ccusage.md) for command mappings and a subprocess example.
+
 ## See it work
 
 <img src="https://raw.githubusercontent.com/maxmoneycash/turbotokens/main/assets/live-demo.gif" alt="Live dashboard recording using synthetic Claude Code usage events" width="100%">
