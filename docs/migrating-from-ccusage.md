@@ -81,6 +81,24 @@ Compare every token category separately, then verify the cost mode your app
 needs. `--mode display` uses recorded costs; `--mode calculate` computes them
 from model rates. Neither estimate is a subscription quota or a provider bill.
 
+## Verified app integrations
+
+These 2026-09-08 checks compare the **v1.1.3 candidate** from
+[`c0de9078`](https://github.com/maxmoneycash/turbotokens/commit/c0de907857b6cd0c536afa688d3697e1a23a33c3)
+with published **ccusage 20.0.20**. Each run verifies the downloaded candidate
+artifact's SHA-256 and retains test logs and binary hashes.
+
+| Proposed integration | What is checked | Native platforms | Result |
+| --- | --- | --- | --- |
+| [token-history](https://github.com/keli-wen/token-history/pull/1) | Claude/Codex snapshots, token and cost fields, dates, timezone, and failure handling | Linux and macOS, x64 and ARM64; Python 3.12 | [27 passed](https://github.com/maxmoneycash/token-history/actions/runs/34237762970) |
+| [aimonitor](https://github.com/Loksly/aimonitor/pull/1) | Literal executable paths and matching API/max usage results | Linux x64 and ARM64; Node 24.5.0 | [90 passed](https://github.com/maxmoneycash/aimonitor/actions/runs/34235889150) |
+| [ccfleet](https://github.com/tangshunpu/ccfleet/pull/1) | Daily, monthly, session, and block reports through local and cached-mirror execution | Linux x64 and ARM64; Node 20.20.2 and 24.5.0 | [8 passed](https://github.com/maxmoneycash/ccfleet/actions/runs/34235895481) |
+
+All listed runs have zero skipped tests. Histories and configuration are
+synthetic; pricing is offline. The proposals are under review. The checks cover
+the listed collector paths; SSH transport and physical LCD hardware are outside
+their scope. See [installation](installation.md) for currently published versions.
+
 ## Call the executable from an app
 
 Use an argument array and handle errors before parsing stdout. This Node.js
@@ -122,7 +140,7 @@ turbotokens discovers `.turbotokens/turbotokens.json` in the working directory
 and `turbotokens.json` in Claude config directories. It does not automatically
 rename or migrate ccusage config files. Inspect supported options before
 copying a config, or pass a reviewed file with `--config /path/to/config.json`.
-An empty `{}` file keeps user defaults out of a controlled comparison. An explicit
+An empty `{}` file keeps user defaults out of a controlled comparison. From v1.1.3, an explicit
 `--config` that cannot be read or is not a JSON object exits with an error before
 a report is printed. Surface that error in your app; do not replace it with zero
 usage.
@@ -130,7 +148,7 @@ usage.
 `CLAUDE_CONFIG_DIR` chooses Claude history directories. The
 [adapter guides](../rust/adapters/README.md) describe other sources.
 `TURBOTOKENS_CACHE_DIR` overrides the Claude parse and report cache location.
-Without an override, each user gets a platform cache directory:
+From v1.1.3, each user gets a platform cache directory unless overridden:
 
 | Platform | Default cache directory |
 | --- | --- |
@@ -139,7 +157,7 @@ Without an override, each user gets a platform cache directory:
 | Linux | `$XDG_CACHE_HOME/turbotokens`, or `~/.cache/turbotokens` |
 
 Give independent users separate directories if overriding this location.
-`TURBOTOKENS_CACHE=off` bypasses both caches, even when a cache directory is set.
+In v1.1.3 and later, `TURBOTOKENS_CACHE=off` bypasses both caches, even when a cache directory is set.
 The cached daily speed measurements are Claude-specific.
 
 Local reports can use embedded or cached pricing with `--offline` where the
