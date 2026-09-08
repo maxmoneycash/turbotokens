@@ -2,6 +2,8 @@
 
 `turbotokens` defaults to a daily report across detected agents. Add an agent name to read only that source, such as `turbotokens claude daily` or `turbotokens codex session`.
 
+Moving an existing app or script? See [migrating from ccusage](migrating-from-ccusage.md) for command mappings, JSON checks, and a subprocess example.
+
 ## Reports
 
 | Command | Grouping or purpose |
@@ -43,7 +45,7 @@ Press Ctrl-C to stop.
 
 ### Stream token events
 
-For scripts, pipes, and other tools, stream one JSON object per usage event:
+For scripts, pipes, and other tools, read a newline-delimited JSON feed:
 
 ```sh
 turbotokens stream
@@ -51,7 +53,9 @@ turbotokens stream --agent grok
 turbotokens live --json          # same feed
 ```
 
-Stdout is newline-delimited JSON. Each usage line looks like:
+The feed starts with a `type: "snapshot"` object containing today's totals. It
+then emits accepted usage records from existing history, followed by records
+read as the files grow. Each `type: "usage"` line looks like:
 
 ```json
 {
@@ -73,12 +77,15 @@ Stdout is newline-delimited JSON. Each usage line looks like:
 `agent` is `claude`, `codex`, or `grok`. `totalTokens` is input + output + cache creation + cache read. `cost` is an estimate in USD. A broken pipe (`| head`) is a clean stop.
 
 ```sh
-# Follow new events as they arrive
-turbotokens stream | jq -c '{time: .timestamp, model, tokens: .totalTokens, cost}'
-
-# Running token total
-turbotokens stream | jq -s 'map(.totalTokens) | add'
+# Inspect usage records, excluding the startup snapshot
+turbotokens stream | jq --unbuffered -c 'select(.type == "usage") | {time: .timestamp, model, tokens: .totalTokens, cost}'
 ```
+
+Filter on `type` before consuming records. Adding the startup snapshot to the
+usage records would count historical usage twice. Claude replacement records
+can also correct an earlier message without emitting another usage event, so
+summing this feed does not reconstruct current totals. Use a fresh JSON report
+or the [Prometheus gauges](#prometheus-metrics) for aggregate usage.
 
 On a TTY, `turbotokens live` is the dashboard. Piped or `--json` / `stream` is the machine feed.
 
@@ -163,6 +170,12 @@ turbotokens daemon stop
 ```
 
 See `turbotokens daemon --help` for its lifecycle commands.
+
+The daemon uses a private `~/.turbotokens/daemon` directory on Unix. It serves a
+report only when the log directories, cost mode, effective timezone, offline
+setting, and pricing overrides match; other requests load directly. `daemon stop`
+requires a responding daemon whose socket and PID record agree. Files left by
+older versions in the temporary directory are ignored.
 
 ## Shell completion
 

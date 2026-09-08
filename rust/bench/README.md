@@ -124,6 +124,40 @@ The feature table describes documented strengths; it is not an exhaustive absenc
 
 ## Other checks
 
+### Randomized Claude cache stress
+
+`stress-claude.py` uses Python 3.9+ and the standard library to mutate an isolated
+synthetic history. Each checkpoint compares the four token categories and recorded
+cost against an independent ledger, then requires cached, warm, and uncached
+daily JSON to match byte for byte. It exercises whitespace, partial-line
+completion, same-size and larger rewrites, truncation, deletion/restoration, and
+identical duplicates across files. The fixture stays bounded at six files with
+at most 64 records each.
+
+```sh
+python3 rust/bench/stress-claude.py \
+  --turbotokens /absolute/path/to/turbotokens \
+  --seed 42 --steps 100 --output /tmp/claude-stress.json
+```
+
+For a soak, add `--duration-seconds 36000`; duration replaces the step limit and
+the harness finishes the current mutation before stopping. It prints progress
+every 30 seconds. Each child has a 15-second timeout. The executable is copied
+at startup so concurrent builds cannot change the binary under test.
+
+Add `--max-report-cache-files 256` to check that a long run stays within the
+report-cache limit. The harness samples file count and logical byte size every
+30 seconds and at completion, and records the largest sampled file count.
+This limit applies to the single Claude daily report kind used by the harness;
+parse-cache files are outside this limit.
+
+Failures save a directory next to `--output` containing the seed/step evidence,
+before/after synthetic files, cache, executable, harness, and actual stdout/stderr. The
+JSON evidence contains a replay command. Temporary data and owned subprocesses
+are cleaned up on success, failure, or interruption. This checks explicit Claude
+daily reports with offline pricing, display mode, and UTC; live telemetry and
+daemon protocols need separate checks.
+
 `warm-bench.sh` checks cached/uncached parity on an existing Claude history:
 
 ```sh

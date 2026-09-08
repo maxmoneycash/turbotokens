@@ -7,8 +7,8 @@ use serde_json::{Value, json};
 
 use crate::{
     Align, Color, Result, SimpleTable, USAGE_COMPACT_WIDTH_THRESHOLD, UsageSummary,
-    cli::SharedArgs, cli_error, color, format_project_name, parse_project_aliases, print_box_title,
-    short_model_name, terminal_width,
+    cli::SharedArgs, cli_error, color, escape_terminal_text, format_project_name,
+    parse_project_aliases, print_box_title, short_model_name, terminal_width,
 };
 
 pub fn wants_json(shared: &SharedArgs) -> bool {
@@ -256,7 +256,7 @@ pub fn print_usage_table_with_options(
         let models = format_models_multiline(&row.models_used);
         let total_tokens = row.total_tokens();
         let mut values = vec![
-            label.to_string(),
+            escape_terminal_text(label).into_owned(),
             models,
             format_number(row.input_tokens),
             format_number(row.output_tokens),
@@ -277,9 +277,12 @@ pub fn print_usage_table_with_options(
             values.pop();
         }
         if include_last_activity {
-            values.push(truncate_rfc3339_to_date(
-                row.last_activity.as_deref().unwrap_or_default(),
-            ));
+            values.push(
+                escape_terminal_text(&truncate_rfc3339_to_date(
+                    row.last_activity.as_deref().unwrap_or_default(),
+                ))
+                .into_owned(),
+            );
         }
         table.push(values);
         if shared.breakdown {
@@ -411,6 +414,7 @@ fn missing_pricing_warnings_for_models<'a>(
     models
         .into_iter()
         .map(|model| {
+            let model = escape_terminal_text(model);
             if offline {
                 format!(
                     "WARN  Missing embedded pricing for {model}; cost excludes this model. Run without --offline or update turbotokens after pricing is added."
@@ -439,7 +443,11 @@ pub fn json_float(value: f64) -> Value {
 fn project_header_row(column_count: usize, project: &str, shared: &SharedArgs) -> Vec<String> {
     let mut row = vec![String::new(); column_count];
     if let Some(first) = row.first_mut() {
-        *first = color(shared, format!("Project: {project}"), Color::Blue);
+        *first = color(
+            shared,
+            format!("Project: {}", escape_terminal_text(project)),
+            Color::Blue,
+        );
     }
     row
 }
@@ -460,7 +468,10 @@ fn push_breakdown_rows(
         let mut values = vec![
             color(
                 shared,
-                format!("  └─ {}", short_model_name(&breakdown.model_name)),
+                format!(
+                    "  └─ {}",
+                    escape_terminal_text(&short_model_name(&breakdown.model_name))
+                ),
                 Color::Grey,
             ),
             String::new(),
@@ -506,7 +517,7 @@ pub fn format_models_multiline(models: &[String]) -> String {
     models.dedup();
     models
         .into_iter()
-        .map(|model| format!("- {model}"))
+        .map(|model| format!("- {}", escape_terminal_text(&model)))
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -764,6 +775,43 @@ mod tests {
         ];
 
         insta::assert_snapshot!(format_models_multiline(&models));
+    }
+
+    #[test]
+    fn display_labels_escape_controls_without_changing_report_json() {
+        let model = "m\nMODEL\x1b[2J\x1b]0;title\x07";
+        let project = "p\r\nPROJECT\x1b[2J";
+        let session = "s\tSESSION\x1b]0;title\x07";
+        let mut row = snapshot_summary("2026-09-08", Some(project), None);
+        row.models_used = vec![model.to_string()];
+        row.session_id = Some(session.to_string());
+        row.model_breakdowns[0].model_name = model.to_string();
+        row.model_breakdowns[0].missing_pricing = true;
+
+        let models = format_models_multiline(&row.models_used);
+        assert_eq!(models.lines().count(), 1);
+        assert!(models.contains("\\nMODEL\\u{1b}[2J"));
+        assert!(!models.chars().any(char::is_control));
+        let header = project_header_row(
+            2,
+            project,
+            &SharedArgs {
+                no_color: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(header[0], "Project: p\\r\\nPROJECT\\u{1b}[2J");
+        assert!(
+            !missing_pricing_warnings(std::slice::from_ref(&row), true)[0]
+                .chars()
+                .any(char::is_control)
+        );
+
+        let summary = summary_json(&row);
+        assert_eq!(summary["modelsUsed"][0], model);
+        assert_eq!(summary["modelBreakdowns"][0]["modelName"], model);
+        assert_eq!(summary["project"], project);
+        assert_eq!(session_summary_json(&row)["sessionId"], session);
     }
 
     fn snapshot_summary(period: &str, project: Option<&str>, credits: Option<f64>) -> UsageSummary {

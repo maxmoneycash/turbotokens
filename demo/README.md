@@ -51,7 +51,7 @@ python3 demo/brand.py
 rsvg-convert assets/social-card.svg -o assets/social-card.png
 ```
 
-The masthead uses the measured repeat-report result from v1.1.0, with its workload qualification. Update the claim and linked benchmark together if recording a new result. The social image is suitable for the repository's social preview setting.
+The masthead keeps the product name and purpose readable at desktop and mobile widths. Performance claims stay with their measured workload in the README's benchmark section. The social image is suitable for the repository's social preview setting.
 
 ## Older tooling
 

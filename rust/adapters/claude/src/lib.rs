@@ -7,6 +7,8 @@ mod live;
 mod paths;
 mod resident;
 mod watch;
+#[cfg(windows)]
+mod windows_change_time;
 
 use std::{
     hash::{Hash, Hasher},
@@ -300,7 +302,7 @@ struct RawUsageEntry {
 }
 
 fn scan_usage_bytes(bytes: &[u8]) -> cache::ScanResult<RawUsageEntry> {
-    let usage_marker = memmem::Finder::new(br#""usage":{"#);
+    let usage_marker = memmem::Finder::new(br#""usage""#);
     let mut result = cache::ScanResult::new();
     let mut offset = 0;
     while let Some(newline) = memchr(b'\n', &bytes[offset..]) {
@@ -330,7 +332,7 @@ fn scan_usage_line(
     min_timestamp_ms: &mut Option<i64>,
     out: &mut Vec<RawUsageEntry>,
 ) {
-    if usage_marker.find(line).is_none() {
+    if !has_usage_object(line, usage_marker) {
         return;
     }
     if has_unsupported_null_field(line) {
@@ -372,6 +374,19 @@ fn scan_usage_line(
         usage_limit_reset_time_ms,
         advisors,
     });
+}
+
+/// Keep the compact JSON check cheap while allowing JSON whitespace around
+/// the field separator. The typed parser still validates the complete record.
+pub(crate) fn has_usage_object(line: &[u8], usage_marker: &memmem::Finder) -> bool {
+    usage_marker.find_iter(line).any(|index| {
+        let suffix = &line[index + usage_marker.needle().len()..];
+        suffix.starts_with(b":{")
+            || suffix
+                .trim_ascii_start()
+                .strip_prefix(b":")
+                .is_some_and(|value| value.trim_ascii_start().starts_with(b"{"))
+    })
 }
 
 fn finish_raw_usage_entry(
@@ -636,27 +651,18 @@ fn is_valid_usage_entry(data: &UsageEntry) -> bool {
 }
 
 pub(crate) fn has_unsupported_null_field(line: &[u8]) -> bool {
-    let mut offset = 0;
-    while let Some(relative_index) = memmem::find(&line[offset..], b":null") {
-        let null_index = offset + relative_index;
-        let mut field_end = null_index.saturating_sub(1);
-        if line.get(field_end) != Some(&b'"') {
-            while field_end > 0 && line[field_end] != b'"' {
-                field_end -= 1;
-            }
+    for null_index in memmem::find_iter(line, b"null") {
+        let Some(before_colon) = line[..null_index].trim_ascii_end().strip_suffix(b":") else {
+            continue;
+        };
+        let Some(before_quote) = before_colon.trim_ascii_end().strip_suffix(b"\"") else {
+            continue;
+        };
+        if let Some(field_start) = memchr::memrchr(b'"', before_quote)
+            && is_unsupported_nullable_field(&before_quote[field_start + 1..])
+        {
+            return true;
         }
-        if line.get(field_end) == Some(&b'"') {
-            let mut field_start = field_end.saturating_sub(1);
-            while field_start > 0 && line[field_start] != b'"' {
-                field_start -= 1;
-            }
-            if line.get(field_start) == Some(&b'"')
-                && is_unsupported_nullable_field(&line[field_start + 1..field_end])
-            {
-                return true;
-            }
-        }
-        offset = null_index + b":null".len();
     }
     false
 }
@@ -913,6 +919,41 @@ mod tests {
         assert!(!has_unsupported_null_field(
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
+    }
+
+    #[test]
+    fn accepts_whitespace_around_usage_fields() {
+        let compact = r#"{"timestamp":"2026-09-08T01:00:00.000Z","version":"2.1.0","message":{"id":"msg-1","model":"claude-sonnet-4","usage":{"input_tokens":123,"output_tokens":45}},"requestId":"req-1","costUSD":0.01}"#;
+        for separator in ["\":", "\" : ", "\"\t:\t", "\"\r:\r"] {
+            let line = compact.replace("\":", separator);
+            for ending in ["", "\n", "\r\n"] {
+                let scan = super::scan_usage_bytes(format!("{line}{ending}").as_bytes());
+                let entries: Vec<_> = scan.entries.into_iter().chain(scan.tail_entries).collect();
+
+                assert_eq!(
+                    entries.len(),
+                    1,
+                    "separator={separator:?}, ending={ending:?}"
+                );
+                assert_eq!(entries[0].usage.input_tokens, 123);
+                assert_eq!(entries[0].usage.output_tokens, 45);
+                assert_eq!(entries[0].cost_usd, Some(0.01));
+                assert_eq!(entries[0].message_id.as_deref(), Some("msg-1"));
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_null_schema_fields_with_whitespace() {
+        for separator in [":", ": ", " \t: \t", "\r:\r"] {
+            let line =
+                format!(r#"{{"message":{{"model"{separator}null,"usage":{{"input_tokens":0}}}}}}"#);
+            assert!(has_unsupported_null_field(line.as_bytes()), "{line}");
+            let content = format!(
+                r#"{{"message":{{"content"{separator}null,"usage":{{"input_tokens":0}}}}}}"#
+            );
+            assert!(!has_unsupported_null_field(content.as_bytes()), "{content}");
+        }
     }
 
     #[test]

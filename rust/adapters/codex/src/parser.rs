@@ -27,17 +27,12 @@ static TOKEN_COUNT_TYPE_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""type":"token_count""#));
 static THREAD_SETTINGS_APPLIED_TYPE_FINDER: LazyLock<Finder<'static>> =
     LazyLock::new(|| Finder::new(br#""type":"thread_settings_applied""#));
-static THREAD_SETTINGS_APPLIED_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(b"thread_settings_applied"));
-static COMPACT_TYPE_FIELD_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(br#""type":"#));
 static TYPE_KEY_FINDER: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(br#""type""#));
-static USAGE_FIELD_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(br#""usage":"#));
-static INPUT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(br#""input_tokens":"#));
-static PROMPT_TOKENS_FIELD_FINDER: LazyLock<Finder<'static>> =
-    LazyLock::new(|| Finder::new(br#""prompt_tokens":"#));
+static USAGE_KEY_FINDER: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(br#""usage""#));
+static INPUT_TOKENS_KEY_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""input_tokens""#));
+static PROMPT_TOKENS_KEY_FINDER: LazyLock<Finder<'static>> =
+    LazyLock::new(|| Finder::new(br#""prompt_tokens""#));
 const CODEX_AUTO_REVIEW_MODEL: &str = "codex-auto-review";
 const CODEX_AUTO_REVIEW_FALLBACKS_JSON: &str = include_str!("codex-auto-review-fallbacks.json");
 
@@ -478,29 +473,17 @@ pub(super) fn codex_line_usage_kind(line: &[u8]) -> Option<CodexLineKind> {
     {
         return Some(CodexLineKind::Session);
     }
-    let has_compact_type = COMPACT_TYPE_FIELD_FINDER.find(line).is_some();
-    let has_nested_token_count = !has_event_msg
-        && has_compact_type
-        && line.len() < 64 * 1024
-        && TOKEN_COUNT_TYPE_FINDER.find(line).is_some();
-    let has_nested_thread_settings_applied = !has_event_msg
-        && has_compact_type
-        && line.len() < 64 * 1024
-        && THREAD_SETTINGS_APPLIED_FINDER.find(line).is_some();
-    if has_event_msg
-        || has_nested_token_count
-        || has_nested_thread_settings_applied
-        || !has_compact_type
-    {
-        let (has_turn_context, has_event_msg, has_token_count, has_thread_settings_applied) =
-            codex_line_type_flags(line);
-        if has_turn_context || (has_event_msg && (has_token_count || has_thread_settings_applied)) {
-            return Some(CodexLineKind::Session);
-        }
+    // A compact type elsewhere in a record does not establish the formatting
+    // of its other fields. Scan the keys after the common compact fast path;
+    // typed deserialization below still validates the actual event structure.
+    let (has_turn_context, has_event_msg, has_token_count, has_thread_settings_applied) =
+        codex_line_type_flags(line);
+    if has_turn_context || (has_event_msg && (has_token_count || has_thread_settings_applied)) {
+        return Some(CodexLineKind::Session);
     }
-    if USAGE_FIELD_FINDER.find(line).is_some()
-        || INPUT_TOKENS_FIELD_FINDER.find(line).is_some()
-        || PROMPT_TOKENS_FIELD_FINDER.find(line).is_some()
+    if USAGE_KEY_FINDER.find(line).is_some()
+        || INPUT_TOKENS_KEY_FINDER.find(line).is_some()
+        || PROMPT_TOKENS_KEY_FINDER.find(line).is_some()
     {
         return Some(CodexLineKind::Headless);
     }
@@ -513,7 +496,10 @@ fn codex_line_type_flags(line: &[u8]) -> (bool, bool, bool, bool) {
     let mut has_event_msg = false;
     let mut has_token_count = false;
     let mut has_thread_settings_applied = false;
-    while let Some(index) = TYPE_KEY_FINDER.find(&line[start..]) {
+    while let Some(index) = line
+        .get(start..)
+        .and_then(|remaining| TYPE_KEY_FINDER.find(remaining))
+    {
         let key_start = start + index;
         let mut cursor = skip_json_whitespace(line, key_start + br#""type""#.len());
         if line.get(cursor) != Some(&b':') {
@@ -1086,6 +1072,18 @@ fn subtract_codex_raw_usage(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ignores_truncated_type_fields_without_panicking() {
+        for line in [
+            br#"{"type":"#.as_slice(),
+            br#"{"type": "#.as_slice(),
+            br#"{"type" : "#.as_slice(),
+            br#"{"type": "event_msg", "payload": {"type": "#.as_slice(),
+        ] {
+            assert!(codex_line_usage_kind(line).is_none());
+        }
+    }
 
     #[test]
     fn maps_recorded_service_tier_spellings() {

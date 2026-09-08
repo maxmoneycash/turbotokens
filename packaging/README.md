@@ -45,9 +45,32 @@ After publishing, verify `npm view turbotokens version` and run `npx --yes turbo
 
 GitHub Releases contains `.tar.gz` archives for macOS/Linux and `.zip` archives for Windows, for both x64 and arm64. Each includes the binary, README, and license. Windows users can extract the archive and place `turbotokens.exe` on their PATH.
 
-The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.2`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
+The archive's short README comes from `RELEASE_README.md`. Packaging replaces
+`@REVISION@` with the built commit so its guide links match the binary. The
+repository README's images and relative links are intended for GitHub.
+
+The shell installer supports `TURBOTOKENS_VERSION` (for example `v1.1.3`) and `TURBOTOKENS_INSTALL_DIR`. Test it in a temporary directory before release:
 
 ```sh
-TURBOTOKENS_VERSION=v1.1.2 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
+TURBOTOKENS_VERSION=v1.1.3 TURBOTOKENS_INSTALL_DIR=/tmp/turbotokens-install sh install.sh
 /tmp/turbotokens-install/turbotokens --version
 ```
+
+## Longer native checks
+
+The release workflow tests synthetic reports and live log changes on all six
+native targets. A manual run can also stress each target for 30 minutes, one
+hour, or five hours using `soak_seconds`. Pull requests and version tags keep the
+short checks. Manual runs retain archives and JSON evidence without publishing.
+
+```sh
+gh workflow run release.yml --repo maxmoneycash/turbotokens \
+  --ref main -f soak_seconds=3600
+```
+
+Choose a reviewed branch or version tag with `--ref`. Record the run's commit SHA
+alongside its evidence so the tested revision is unambiguous.
+Each target runs the deterministic [Claude mutation harness](../rust/bench/stress-claude.py)
+with isolated synthetic logs, checks all four token categories and recorded cost,
+and requires cached/uncached JSON parity. This does not cover every agent or
+application integration.

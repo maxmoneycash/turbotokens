@@ -101,25 +101,27 @@ impl ResidentIndex {
         self.watch.cursors.len()
     }
 
+    /// Source directories represented by this index, for daemon compatibility.
+    pub fn source_paths(&self) -> &[PathBuf] {
+        &self.paths
+    }
+
     pub fn entries_indexed(&self) -> usize {
         self.watch.deduped.len()
     }
 
     fn apply(&mut self, outcome: WatchOutcome) {
         match outcome {
+            WatchOutcome::Reset => {
+                self.by_date.clear();
+                self.by_date_project.clear();
+                self.date_entries.clear();
+                for index in 0..self.watch.deduped.len() {
+                    self.add_entry(index);
+                }
+            }
             WatchOutcome::Added { index, .. } => {
-                let entry = &self.watch.deduped[index];
-                let date = entry.date.to_string();
-                let project = Arc::clone(&entry.project);
-                self.by_date
-                    .entry(date.clone())
-                    .or_default()
-                    .add_entry(entry);
-                self.by_date_project
-                    .entry((date.clone(), project))
-                    .or_default()
-                    .add_entry(entry);
-                self.date_entries.entry(date).or_default().push(index);
+                self.add_entry(index);
             }
             WatchOutcome::Replaced {
                 index, previous, ..
@@ -129,10 +131,12 @@ impl ResidentIndex {
                     (entry.date.to_string(), Arc::clone(&entry.project))
                 };
                 if date.as_str() != previous.date.as_ref() {
-                    self.date_entries
-                        .entry(date.clone())
-                        .or_default()
-                        .push(index);
+                    // Added may already have indexed the final winner of this
+                    // batch, or a later replacement may return to an old date.
+                    let indices = self.date_entries.entry(date.clone()).or_default();
+                    if !indices.contains(&index) {
+                        indices.push(index);
+                    }
                 }
                 self.rebuild_date(&date, std::slice::from_ref(&project));
                 if previous.date.as_ref() != date.as_str() || previous.project != project {
@@ -143,6 +147,21 @@ impl ResidentIndex {
                 }
             }
         }
+    }
+
+    fn add_entry(&mut self, index: usize) {
+        let entry = &self.watch.deduped[index];
+        let date = entry.date.to_string();
+        let project = Arc::clone(&entry.project);
+        self.by_date
+            .entry(date.clone())
+            .or_default()
+            .add_entry(entry);
+        self.by_date_project
+            .entry((date.clone(), project))
+            .or_default()
+            .add_entry(entry);
+        self.date_entries.entry(date).or_default().push(index);
     }
 
     /// Rebuilds one date's accumulators from the resident entries so a dedup
@@ -206,6 +225,167 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         }
+    }
+
+    #[test]
+    fn seeds_duplicate_winners_on_changed_dates_only_once() {
+        let first = usage_line("shared", 20);
+        let next_day = usage_line("shared", 250).replace("2026-07-27", "2026-07-28");
+        let back_again = usage_line("shared", 300);
+        for single_thread in [true, false] {
+            for (history, winner_date, winner_tokens) in [
+                (format!("{first}\n{next_day}\n"), "2026-07-28", 365),
+                (
+                    format!("{first}\n{next_day}\n{back_again}\n"),
+                    "2026-07-27",
+                    415,
+                ),
+            ] {
+                let fixture = fs_fixture!({
+                    "projects/proj-a/session.jsonl": history,
+                    "projects/proj-b/other.jsonl": format!("{}\n", usage_line("unrelated", 5)),
+                });
+                let mut args = shared();
+                args.single_thread = single_thread;
+                let mut index =
+                    ResidentIndex::with_paths(&args, vec![fixture.root().to_path_buf()]);
+                index.seed();
+                let rows = index.daily_rows(None, false);
+                assert_eq!(
+                    rows.iter().map(|row| row.total_tokens()).sum::<u64>(),
+                    winner_tokens + 120
+                );
+                assert!((rows.iter().map(|row| row.total_cost).sum::<f64>() - 0.02).abs() < 1e-12);
+                let winner = index.daily_rows(Some("proj-a"), true);
+                assert_eq!(winner.len(), 1);
+                assert_eq!(winner[0].date.as_deref(), Some(winner_date));
+                assert_eq!(winner[0].total_tokens(), winner_tokens);
+                let unchanged = index.daily_rows(Some("proj-b"), true);
+                assert_eq!(unchanged.len(), 1);
+                assert_eq!(unchanged[0].date.as_deref(), Some("2026-07-27"));
+                assert_eq!(unchanged[0].total_tokens(), 120);
+            }
+        }
+    }
+
+    #[test]
+    fn moving_a_duplicate_winner_back_to_an_earlier_date_does_not_double_count() {
+        let mut history = format!("{}\n", usage_line("shared", 20));
+        let fixture = fs_fixture!({
+            "projects/proj-a/session.jsonl": history.clone(),
+        });
+        let path = fixture.path("projects/proj-a/session.jsonl");
+        let mut index = ResidentIndex::with_paths(&shared(), vec![fixture.root().to_path_buf()]);
+        index.seed();
+        for (date, output) in [
+            ("2026-07-28", 250),
+            ("2026-07-27", 300),
+            ("2026-07-28", 400),
+        ] {
+            history.push_str(&usage_line("shared", output).replace("2026-07-27", date));
+            history.push('\n');
+            std::fs::write(&path, &history).unwrap();
+            index.poll();
+            for grouped in [false, true] {
+                let rows = index.daily_rows(None, grouped);
+                assert_eq!(rows.len(), 1);
+                assert_eq!(rows[0].date.as_deref(), Some(date));
+                assert_eq!(rows[0].total_tokens(), 115 + output);
+                assert!((rows[0].total_cost - 0.01).abs() < 1e-12);
+            }
+        }
+    }
+
+    #[test]
+    fn replaces_changed_history_instead_of_retaining_old_contributions() {
+        let first = usage_line("msg-1", 20);
+        let second = usage_line("msg-2", 30);
+        let initial = format!("{first}\n{second}\n");
+        let replacements = [
+            (format!("{}\n{second}\n", usage_line("msg-3", 40)), 300),
+            (
+                format!("{}\n{second}\n", usage_line("msg-3", 400))
+                    .replace("2026-07-27", "2026-07-28"),
+                660,
+            ),
+            (format!("{first}\n"), 135),
+            (String::new(), 0),
+        ];
+        for single_thread in [true, false] {
+            for (replacement, expected_tokens) in &replacements {
+                let fixture = fs_fixture!({
+                    "projects/proj-a/sess-1.jsonl": initial.clone(),
+                });
+                let paths = vec![fixture.root().to_path_buf()];
+                let mut shared = shared();
+                shared.single_thread = single_thread;
+                let mut index = ResidentIndex::with_paths(&shared, paths.clone());
+                index.seed();
+                let path = fixture.path("projects/proj-a/sess-1.jsonl");
+                std::fs::write(&path, replacement).unwrap();
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(std::fs::FileTimes::new().set_modified(std::time::UNIX_EPOCH))
+                    .unwrap();
+                index.poll();
+                let rows = index.daily_rows(None, false);
+                assert_eq!(
+                    rows.iter().map(|row| row.total_tokens()).sum::<u64>(),
+                    *expected_tokens
+                );
+                let mut fresh = ResidentIndex::with_paths(&shared, paths);
+                fresh.seed();
+                for grouped in [false, true] {
+                    assert_eq!(
+                        serde_json::to_value(index.daily_rows(None, grouped)).unwrap(),
+                        serde_json::to_value(fresh.daily_rows(None, grouped)).unwrap()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn deletion_and_restoration_reselect_duplicate_winners_across_files() {
+        let lower = format!("{}\n", usage_line("shared", 20));
+        let higher = format!("{}\n", usage_line("shared", 250));
+        let fixture = fs_fixture!({
+            "projects/proj-a/low.jsonl": lower.clone(),
+            "projects/proj-b/high.jsonl": higher.clone(),
+        });
+        let mut index = ResidentIndex::with_paths(&shared(), vec![fixture.root().to_path_buf()]);
+        index.seed();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 365);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-b")
+        );
+        let high_path = fixture.path("projects/proj-b/high.jsonl");
+        std::fs::remove_file(&high_path).unwrap();
+        index.poll();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 135);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-a")
+        );
+        assert_eq!(index.files_watched(), 1);
+        std::fs::write(&high_path, &higher).unwrap();
+        index.poll();
+        assert_eq!(index.daily_rows(None, false)[0].total_tokens(), 365);
+        assert_eq!(
+            index.daily_rows(None, true)[0].project.as_deref(),
+            Some("proj-b")
+        );
+        assert_eq!(index.entries_indexed(), 1);
+        std::fs::remove_file(&high_path).unwrap();
+        std::fs::remove_file(fixture.path("projects/proj-a/low.jsonl")).unwrap();
+        index.poll();
+        assert!(index.daily_rows(None, false).is_empty());
+        assert!(index.daily_rows(None, true).is_empty());
+        assert_eq!(index.files_watched(), 0);
+        assert_eq!(index.entries_indexed(), 0);
     }
 
     #[test]

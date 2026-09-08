@@ -52,8 +52,7 @@ resolve_install_dir() {
 }
 
 download_url() {
-    platform="$1"
-    asset="${BINARY}-${platform}.tar.gz"
+    asset="$1"
     if [ -n "${TURBOTOKENS_VERSION:-}" ]; then
         printf 'https://github.com/%s/releases/download/%s/%s' "$REPO" "$TURBOTOKENS_VERSION" "$asset"
     else
@@ -61,10 +60,40 @@ download_url() {
     fi
 }
 
+verify_checksum() {
+    archive="$1"
+    manifest="$2"
+    asset="$3"
+    expected="$(awk -v asset="$asset" '$2 == asset { print $1 }' "$manifest")"
+    case "$expected" in
+        ''|*[!0-9a-fA-F]*) err "missing or invalid SHA-256 checksum for ${asset}"; return 1 ;;
+    esac
+    if [ "${#expected}" -ne 64 ]; then
+        err "missing or invalid SHA-256 checksum for ${asset}"
+        return 1
+    fi
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual="$(sha256sum "$archive")"
+    elif command -v shasum >/dev/null 2>&1; then
+        actual="$(shasum -a 256 "$archive")"
+    else
+        err "SHA-256 verification requires sha256sum or shasum"
+        return 1
+    fi
+    actual="${actual%% *}"
+    expected="$(printf '%s' "$expected" | tr 'A-F' 'a-f')"
+    if [ "$actual" != "$expected" ]; then
+        err "checksum mismatch for ${asset}; existing installation was not changed"
+        return 1
+    fi
+}
+
 main() {
     platform="$(detect_platform)"
     install_dir="$(resolve_install_dir)"
-    url="$(download_url "$platform")"
+    asset="${BINARY}-${platform}.tar.gz"
+    url="$(download_url "$asset")"
+    checksum_url="$(download_url SHA256SUMS)"
 
     if [ -n "${TURBOTOKENS_VERSION:-}" ]; then
         info "Installing turbotokens ${TURBOTOKENS_VERSION} (${platform})"
@@ -76,20 +105,37 @@ main() {
     tmp_dir="$(mktemp -d)"
     trap 'rm -rf "$tmp_dir"' EXIT
 
-    if ! curl -fsSL "$url" -o "${tmp_dir}/turbotokens.tar.gz"; then
+    if ! curl --proto '=https' --proto-redir '=https' -fsSL "$url" -o "${tmp_dir}/turbotokens.tar.gz"; then
         err "download failed (does a release exist for ${TURBOTOKENS_VERSION:-latest} on ${platform}?)"
         exit 1
     fi
+    if ! curl --proto '=https' --proto-redir '=https' -fsSL "$checksum_url" -o "${tmp_dir}/SHA256SUMS"; then
+        err "checksum download failed; existing installation was not changed"
+        exit 1
+    fi
+    verify_checksum "${tmp_dir}/turbotokens.tar.gz" "${tmp_dir}/SHA256SUMS" "$asset"
 
     info "Unpacking"
-    tar -xzf "${tmp_dir}/turbotokens.tar.gz" -C "$tmp_dir"
+    tar -xzf "${tmp_dir}/turbotokens.tar.gz" -C "$tmp_dir" turbotokens
+    if [ ! -f "${tmp_dir}/turbotokens" ] || [ -L "${tmp_dir}/turbotokens" ]; then
+        err "release archive does not contain a regular turbotokens executable"
+        exit 1
+    fi
+    chmod +x "${tmp_dir}/turbotokens"
+    if ! version_out="$("${tmp_dir}/turbotokens" --version)"; then
+        err "downloaded binary could not run; existing installation was not changed"
+        exit 1
+    fi
+    if [ -n "${TURBOTOKENS_VERSION:-}" ] && [ "$version_out" != "turbotokens ${TURBOTOKENS_VERSION#v}" ]; then
+        err "downloaded binary version does not match ${TURBOTOKENS_VERSION}"
+        exit 1
+    fi
 
     mkdir -p "$install_dir"
     if ! mv "${tmp_dir}/turbotokens" "${install_dir}/turbotokens" 2>/dev/null; then
         info "No write permission to ${install_dir}; trying with sudo"
         sudo mv "${tmp_dir}/turbotokens" "${install_dir}/turbotokens"
     fi
-    chmod +x "${install_dir}/turbotokens" 2>/dev/null || sudo chmod +x "${install_dir}/turbotokens"
 
     case ":${PATH}:" in
         *":${install_dir}:"*) ;;
@@ -99,7 +145,6 @@ main() {
             ;;
     esac
 
-    version_out="$("${install_dir}/turbotokens" --version)"
     info "Installed turbotokens to ${install_dir}/turbotokens"
     info "Success: ${version_out}"
 }

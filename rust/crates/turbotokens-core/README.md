@@ -14,6 +14,8 @@ neither has a consumer outside it.
   JSON shaping, and table rendering.
 - `date_utils.rs`, `fast.rs`, `home.rs`, `path_utils.rs`, `utils.rs` — timestamp
   parsing, byte-level line scanning, and small shared helpers.
+- `cache_dir.rs` — per-user cache locations and private directory creation,
+  shared with the CLI diagnostics.
 - `progress.rs` — the load progress indicator.
 - `types.rs`, `CliError`, and the `Result` alias every crate returns.
 

@@ -1,6 +1,7 @@
 use std::{fmt, io};
 
 pub mod agent_report;
+pub mod cache_dir;
 pub mod cost;
 pub mod date_utils;
 pub mod fast;
@@ -49,7 +50,8 @@ pub use utils::{
 };
 
 pub use turbotokens_terminal::{
-    Align, Color, SimpleTable, TerminalStyle, terminal_width, truncate_to_width,
+    Align, Color, SimpleTable, TerminalStyle, escape_terminal_text, terminal_width,
+    truncate_to_width,
 };
 
 pub const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;

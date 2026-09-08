@@ -30,10 +30,9 @@ pub(crate) fn run(args: DaemonArgs) -> Result<()> {
 use std::{
     env,
     ffi::OsString,
-    fs,
     io::{BufRead, BufReader, Write},
-    os::unix::net::{UnixListener, UnixStream},
-    path::{Path, PathBuf},
+    os::unix::net::UnixStream,
+    path::Path,
     process::{Command as ProcessCommand, Stdio},
     thread,
     time::{Duration, Instant},
@@ -44,8 +43,11 @@ use turbotokens_adapter_claude::ResidentIndex;
 
 #[cfg(unix)]
 use super::daemon_client::{
-    DAEMON_READ_TIMEOUT, DaemonRequest, DaemonResponse, StartedWith, request_response, socket_path,
+    DAEMON_PROTOCOL, DAEMON_READ_TIMEOUT, DaemonRequest, DaemonResponse, StartedWith,
+    request_response, socket_path,
 };
+#[cfg(unix)]
+use super::daemon_paths::{DaemonPaths, PidFile, bind_socket, read_pid};
 
 /// Server-side request read timeout; a wedged client must not stall the
 /// poll loop.
@@ -53,16 +55,12 @@ use super::daemon_client::{
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[cfg(unix)]
-fn pid_path() -> PathBuf {
-    env::temp_dir().join("turbotokens-daemon.pid")
-}
-
-#[cfg(unix)]
 fn run_server(args: &DaemonArgs) -> Result<()> {
-    let socket = socket_path();
+    let paths = DaemonPaths::resolve(true)?;
+    let socket = paths.socket;
     if socket.exists()
         && let Ok(response) = request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)
-        && response.ok
+        && response.is_current()
     {
         return Err(cli_error(format!(
             "turbotokens daemon is already running (pid {})",
@@ -80,7 +78,7 @@ fn run_server(args: &DaemonArgs) -> Result<()> {
     );
     serve(
         &socket,
-        &pid_path(),
+        &paths.pid,
         &args.shared,
         args.interval_ms,
         &mut index,
@@ -100,11 +98,9 @@ pub(crate) fn serve(
     index: &mut ResidentIndex,
     started: Instant,
 ) -> Result<()> {
-    // A leftover socket from a killed daemon is safe to replace: the ping
-    // check above already established nothing answers on it.
-    let _ = fs::remove_file(socket);
-    let listener = UnixListener::bind(socket)?;
-    fs::write(pid_file, std::process::id().to_string())?;
+    let mut pid_file = PidFile::acquire(pid_file)?;
+    let (listener, _socket_file) = bind_socket(socket)?;
+    pid_file.publish()?;
 
     let (connections, incoming) = std::sync::mpsc::channel::<UnixStream>();
     let acceptor = thread::spawn(move || {
@@ -120,7 +116,7 @@ pub(crate) fn serve(
         }
     });
 
-    let started_with = StartedWith::from_shared(shared);
+    let started_with = StartedWith::from_shared(shared, index.source_paths());
     let interval = Duration::from_millis(interval_ms.max(1));
     let mut next_poll = Instant::now() + interval;
     let mut shutdown = false;
@@ -152,8 +148,6 @@ pub(crate) fn serve(
     // Wake the acceptor so it observes the closed channel and exits.
     let _ = UnixStream::connect(socket);
     let _ = acceptor.join();
-    let _ = fs::remove_file(socket);
-    let _ = fs::remove_file(pid_file);
     Ok(())
 }
 
@@ -195,9 +189,13 @@ fn handle_connection(
             Ok(false)
         }
         "shutdown" => {
-            let response = empty_response(started_with, started, index);
+            let mut response = empty_response(started_with, started, index);
+            if request.expected_pid != Some(std::process::id()) {
+                response.ok = false;
+                response.error = Some("shutdown requires the matching daemon PID".to_string());
+            }
             write_response(reader.get_mut(), &response)?;
-            Ok(true)
+            Ok(response.ok)
         }
         command => {
             let mut response = empty_response(started_with, started, index);
@@ -217,6 +215,7 @@ fn empty_response(
 ) -> DaemonResponse {
     DaemonResponse {
         ok: true,
+        protocol: Some(DAEMON_PROTOCOL.to_string()),
         pid: Some(std::process::id()),
         uptime_ms: Some(started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64),
         files: Some(index.files_watched()),
@@ -236,10 +235,10 @@ fn write_response(stream: &mut UnixStream, response: &DaemonResponse) -> std::io
 
 #[cfg(unix)]
 fn start_server() -> Result<()> {
-    let socket = socket_path();
+    let socket = DaemonPaths::resolve(true)?.socket;
     if socket.exists()
         && let Ok(response) = request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)
-        && response.ok
+        && response.is_current()
     {
         println!(
             "turbotokens daemon is already running (pid {})",
@@ -248,7 +247,7 @@ fn start_server() -> Result<()> {
         return Ok(());
     }
 
-    let child = ProcessCommand::new(env::current_exe()?)
+    let mut child = ProcessCommand::new(env::current_exe()?)
         .args(run_args()?)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -261,10 +260,16 @@ fn start_server() -> Result<()> {
     for _ in 0..100 {
         thread::sleep(Duration::from_millis(50));
         if let Ok(response) = request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)
-            && response.ok
+            && response.is_current()
+            && response.pid == Some(pid)
         {
             println!("turbotokens daemon started (pid {pid})");
             return Ok(());
+        }
+        if let Some(status) = child.try_wait()? {
+            return Err(cli_error(format!(
+                "daemon exited ({status}); run `turbotokens daemon run` to see the startup error"
+            )));
         }
     }
     println!("turbotokens daemon spawned (pid {pid}) but is not answering yet");
@@ -289,51 +294,38 @@ fn run_args() -> Result<Vec<OsString>> {
 
 #[cfg(unix)]
 fn stop_server() -> Result<()> {
-    let socket = socket_path();
-    if socket.exists()
-        && let Ok(response) =
-            request_response(&socket, &DaemonRequest::shutdown(), DAEMON_READ_TIMEOUT)
-        && response.ok
-    {
-        println!(
-            "turbotokens daemon stopped (pid {})",
-            response.pid.unwrap_or_default()
-        );
-        let _ = fs::remove_file(pid_path());
-        return Ok(());
-    }
+    let paths = DaemonPaths::resolve(false)?;
+    stop_matching_server(&paths.socket, &paths.pid)
+}
 
-    // The socket is dead: fall back to the pid file and SIGTERM.
-    let pid = fs::read_to_string(pid_path())
-        .ok()
-        .and_then(|contents| contents.trim().parse::<u32>().ok());
-    match pid {
-        Some(pid) => {
-            let status = ProcessCommand::new("kill").arg(pid.to_string()).status()?;
-            if status.success() {
-                println!("turbotokens daemon stopped (pid {pid})");
-                let _ = fs::remove_file(socket);
-                let _ = fs::remove_file(pid_path());
-                Ok(())
-            } else {
-                Err(cli_error(format!(
-                    "failed to stop turbotokens daemon (pid {pid})"
-                )))
-            }
-        }
-        None => Err(cli_error("turbotokens daemon is not running")),
+#[cfg(unix)]
+fn stop_matching_server(socket: &Path, pid_file: &Path) -> Result<()> {
+    // A PID file alone is never authority to signal a process. Verify both
+    // ends of this private IPC endpoint, then ask that exact daemon to exit.
+    let pid = read_pid(pid_file)?;
+    let ping = request_response(socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)?;
+    if !ping.is_current() || ping.pid != Some(pid) {
+        return Err(cli_error(
+            "daemon socket and PID record do not match; refusing to stop",
+        ));
     }
+    let response = request_response(socket, &DaemonRequest::shutdown(pid), DAEMON_READ_TIMEOUT)?;
+    if !response.is_current() || response.pid != Some(pid) {
+        return Err(cli_error("daemon did not confirm shutdown"));
+    }
+    println!("turbotokens daemon stopped (pid {pid})");
+    Ok(())
 }
 
 #[cfg(unix)]
 fn status_server() -> Result<()> {
-    let socket = socket_path();
+    let socket = socket_path()?;
     let response = if socket.exists() {
         request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT).ok()
     } else {
         None
     };
-    let Some(response) = response.filter(|response| response.ok) else {
+    let Some(response) = response.filter(DaemonResponse::is_current) else {
         return Err(cli_error("turbotokens daemon is not running"));
     };
     println!("turbotokens daemon running");
@@ -375,6 +367,7 @@ fn format_uptime(millis: u64) -> String {
 mod tests {
     use super::*;
     use crate::cli::CostMode;
+    use std::fs;
     use turbotokens_test_support::fs_fixture;
 
     fn usage_line(message_id: &str, output_tokens: u64) -> String {
@@ -419,9 +412,14 @@ mod tests {
         }
 
         // Warmup query, then measure.
-        let rows =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+        let rows = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            false,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves rows");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].date.as_deref(), Some("2026-07-28"));
         assert_eq!(rows[0].input_tokens, 100);
@@ -431,8 +429,14 @@ mod tests {
         let mut samples = Vec::new();
         for _ in 0..25 {
             let start = Instant::now();
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &shared,
+                None,
+                false,
+                &[fixture.root().to_path_buf()],
+            )
+            .expect("daemon serves rows");
             samples.push(start.elapsed());
         }
         samples.sort();
@@ -455,8 +459,28 @@ mod tests {
             ..shared.clone()
         };
         assert!(
-            super::super::daemon_client::try_daily_from_socket(&socket, &mismatched, None, false)
-                .is_none()
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &mismatched,
+                None,
+                false,
+                &[fixture.root().to_path_buf()]
+            )
+            .is_none()
+        );
+
+        let other_source =
+            fs_fixture!({ "projects/other/session.jsonl": usage_line("other", 999) });
+        assert!(
+            super::super::daemon_client::try_daily_from_socket_with_paths(
+                &socket,
+                &shared,
+                None,
+                false,
+                &[other_source.root().to_path_buf()],
+            )
+            .is_none(),
+            "a daemon indexing a different Claude directory must be bypassed",
         );
 
         // Appended lines show up within a couple of poll intervals.
@@ -470,16 +494,26 @@ mod tests {
         drop(file);
         thread::sleep(Duration::from_millis(250));
 
-        let rows =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, false)
-                .expect("daemon serves rows");
+        let rows = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            false,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves rows");
         assert_eq!(rows[0].input_tokens, 300);
         assert_eq!(rows[0].output_tokens, 60);
         assert!((rows[0].total_cost - 0.03).abs() < 1e-9);
 
-        let grouped =
-            super::super::daemon_client::try_daily_from_socket(&socket, &shared, None, true)
-                .expect("daemon serves grouped rows");
+        let grouped = super::super::daemon_client::try_daily_from_socket_with_paths(
+            &socket,
+            &shared,
+            None,
+            true,
+            &[fixture.root().to_path_buf()],
+        )
+        .expect("daemon serves grouped rows");
         assert_eq!(grouped.len(), 1);
         assert_eq!(grouped[0].project.as_deref(), Some("p"));
 
@@ -488,9 +522,25 @@ mod tests {
         assert!(ping.ok);
         assert!(ping.entries.unwrap_or_default() >= 3);
 
-        let shutdown = request_response(&socket, &DaemonRequest::shutdown(), DAEMON_READ_TIMEOUT)
-            .expect("shutdown answers");
-        assert!(shutdown.ok);
+        let refused = request_response(&socket, &DaemonRequest::shutdown(0), DAEMON_READ_TIMEOUT)
+            .expect("mismatched shutdown answers");
+        assert!(!refused.ok);
+        assert!(
+            request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)
+                .unwrap()
+                .is_current()
+        );
+
+        // An unrelated PID record must never authorize shutdown or a signal.
+        fs::write(&pid_file, "1").unwrap();
+        assert!(stop_matching_server(&socket, &pid_file).is_err());
+        assert!(
+            request_response(&socket, &DaemonRequest::ping(), DAEMON_READ_TIMEOUT)
+                .unwrap()
+                .is_current()
+        );
+        fs::write(&pid_file, std::process::id().to_string()).unwrap();
+        stop_matching_server(&socket, &pid_file).expect("matching daemon stops");
         server.join().expect("server thread exits").unwrap();
         assert!(!socket.exists());
         assert!(!pid_file.exists());

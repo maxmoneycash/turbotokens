@@ -30,12 +30,16 @@ pub struct ConfigContext {
     command: ConfigCommand,
     pi_stores: Vec<NamedPiStore>,
     error: Option<String>,
+    load_error: Option<String>,
 }
 
 impl ConfigContext {
     pub fn from_args(args: &[String]) -> Self {
         let command = detect_config_command(args);
-        let value = load_config_value(scan_config_path(args).as_deref());
+        let (value, load_error) = match load_config_value(scan_config_path(args).as_deref()) {
+            Ok(value) => (value, None),
+            Err(error) => (None, Some(error)),
+        };
         let (pi_stores, error) = value
             .as_ref()
             .map(parse_named_pi_stores)
@@ -47,6 +51,7 @@ impl ConfigContext {
             command,
             pi_stores,
             error,
+            load_error,
         }
     }
 
@@ -204,16 +209,27 @@ fn object_at<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Map<St
     object.get(key).and_then(Value::as_object)
 }
 
-fn load_config_value(path: Option<&Path>) -> Option<Value> {
-    let paths = match path {
-        Some(path) => vec![path.to_path_buf()],
-        None => discover_config_paths(),
-    };
-    paths
+fn load_config_value(path: Option<&Path>) -> Result<Option<Value>, String> {
+    if let Some(path) = path {
+        let content = fs::read_to_string(path)
+            .map_err(|error| config_error(format!("cannot read '{}': {error}", path.display())))?;
+        let value: Value = serde_json::from_str(&content)
+            .map_err(|error| config_error(format!("cannot parse '{}': {error}", path.display())))?;
+        if !value.is_object() {
+            return Err(config_error(format!(
+                "'{}' must contain a JSON object",
+                path.display()
+            )));
+        }
+        return Ok(Some(value));
+    }
+    // Optional auto-discovery retains its existing fallback behavior. An
+    // explicitly requested file must be usable before any report can run.
+    Ok(discover_config_paths()
         .into_iter()
         .filter_map(|path| fs::read_to_string(path).ok())
         .filter_map(|content| serde_json::from_str::<Value>(&content).ok())
-        .find(|value| value.as_object().is_some())
+        .find(|value| value.as_object().is_some()))
 }
 
 fn discover_config_paths() -> Vec<PathBuf> {
@@ -486,9 +502,11 @@ fn apply_config_to_agent_args(
 
 impl turbotokens_cli::CliConfig for ConfigContext {
     fn config_error(&self) -> Option<&str> {
-        self.command_uses_named_pi_stores()
-            .then_some(self.error.as_deref())
-            .flatten()
+        self.load_error.as_deref().or_else(|| {
+            self.command_uses_named_pi_stores()
+                .then_some(self.error.as_deref())
+                .flatten()
+        })
     }
 
     fn apply_shared(&self, shared: &mut SharedArgs) {
@@ -1160,6 +1178,7 @@ mod tests {
             },
             pi_stores: Vec::new(),
             error: None,
+            load_error: None,
         }
     }
 
@@ -1175,5 +1194,70 @@ mod tests {
                 .to_string_lossy()
                 .into_owned(),
         ])
+    }
+
+    #[test]
+    fn explicit_missing_config_is_an_error_for_every_source() {
+        let fixture = fs_fixture!({ ".keep": "" });
+        let missing = fixture.path("missing.json").to_string_lossy().into_owned();
+        for command in [
+            &["daily"][..],
+            &["claude", "daily"],
+            &["codex", "session"],
+            &["blocks"],
+        ] {
+            let mut args = command
+                .iter()
+                .map(|arg| (*arg).to_string())
+                .collect::<Vec<_>>();
+            args.extend(["--config".to_string(), missing.clone()]);
+            let context = ConfigContext::from_args(&args);
+            let error = context.config_error().expect("explicit path must be read");
+            assert!(error.contains("cannot read"), "{error}");
+            assert!(error.contains("missing.json"), "{error}");
+        }
+    }
+
+    #[test]
+    fn explicit_malformed_config_reports_json_location() {
+        let context = config_context_from_json("{\"defaults\":");
+        let error = context.config_error().expect("malformed JSON must fail");
+        assert!(error.contains("cannot parse"), "{error}");
+        assert!(error.contains("line 1 column"), "{error}");
+    }
+
+    #[test]
+    fn explicit_config_requires_an_object() {
+        for raw in ["[]", "null", "42", "\"config\""] {
+            let context = config_context_from_json(raw);
+            assert!(
+                context
+                    .config_error()
+                    .unwrap()
+                    .contains("must contain a JSON object")
+            );
+        }
+        assert!(config_context_from_json("{}").config_error().is_none());
+    }
+
+    #[test]
+    fn unrelated_source_reports_ignore_named_pi_store_errors() {
+        let fixture = fs_fixture!({ "config.json": r#"{"pi":{"stores":false}}"# });
+        for command in [&["claude", "daily"][..], &["codex", "session"], &["blocks"]] {
+            let mut args = command
+                .iter()
+                .map(|arg| (*arg).to_string())
+                .collect::<Vec<_>>();
+            args.extend([
+                "--config".to_string(),
+                fixture.path("config.json").to_string_lossy().into_owned(),
+            ]);
+            assert!(ConfigContext::from_args(&args).config_error().is_none());
+        }
+        assert!(
+            config_context_from_json(r#"{"pi":{"stores":false}}"#)
+                .config_error()
+                .is_some()
+        );
     }
 }

@@ -16,6 +16,9 @@ layers.
 - `jsonl` — the streaming JSONL parsing helpers.
 - `report::print_table_for_agent` — the usage table for adapters whose rows are
   plain `UsageSummary` values, parameterized by agent name.
+- `live` — shared usage bookkeeping, terminal dashboard, alerts, and Prometheus
+  metrics. The metrics server uses a one-second socket write timeout so a
+  stalled reader cannot hold its serving thread indefinitely.
 
 ## Public surface
 

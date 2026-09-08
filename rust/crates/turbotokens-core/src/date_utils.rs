@@ -294,6 +294,16 @@ pub fn parse_tz(timezone: Option<&str>) -> Option<JiffTimeZone> {
     timezone.and_then(|value| JiffTimeZone::get(value).ok())
 }
 
+/// Identity of the timezone used to group report dates, including `TZ` or the
+/// system setting when no explicit zone was supplied. Opaque local TZif files
+/// have no stable identity and must bypass cross-process report reuse.
+pub fn timezone_identity(timezone: Option<&str>) -> Option<String> {
+    let timezone = parse_tz(timezone).unwrap_or_else(JiffTimeZone::system);
+    jiff::fmt::temporal::DateTimePrinter::new()
+        .time_zone_to_string(&timezone)
+        .ok()
+}
+
 pub fn format_date(timestamp: TimestampMs, timezone: Option<&str>) -> String {
     format_date_tz(timestamp, parse_tz(timezone).as_ref())
 }
