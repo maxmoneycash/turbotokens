@@ -138,6 +138,8 @@ Agent formats differ. Available model, project, cache, and session details depen
 
 ## Live dashboard
 
+Grok live mode and `stream` require **v1.1.3 or newer**. Check the [release status](#install) before installing.
+
 ```sh
 turbotokens live                    # Claude Code
 turbotokens live --agent codex

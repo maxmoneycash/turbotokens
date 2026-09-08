@@ -30,6 +30,8 @@ The token total can include input, output, cache creation, and cache reads, depe
 
 ## Live mode
 
+Grok live mode requires **v1.1.3 or newer**. Claude Code and Codex live mode are available in v1.1.2.
+
 Watch today's tokens and estimated spend in the terminal:
 
 ```sh
@@ -44,6 +46,8 @@ Live mode currently follows **Claude Code** (default), **Codex**, or **Grok Buil
 Press Ctrl-C to stop.
 
 ### Stream token events
+
+The `stream` command and the `agent` and `totalTokens` event fields require **v1.1.3 or newer**. In v1.1.2, use `live --json` for the earlier event format. See [installation](installation.md) for the currently published version.
 
 For scripts, pipes, and other tools, read a newline-delimited JSON feed:
 
