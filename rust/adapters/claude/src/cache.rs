@@ -3,16 +3,15 @@
 //! Parsing large JSONL logs dominates report runtime, so each source file gets
 //! a sibling cache file holding the timezone/mode/pricing-independent records
 //! scanned from its bytes. Repeat runs validate the cache against the file's
-//! size and mtime and rescan changed files. All cache I/O is
+//! metadata stamp and rescan changed files. All cache I/O is
 //! best-effort: any decode or I/O problem falls back to a full rescan and never
 //! fails the report.
 
 use std::{
     fs,
-    hash::Hasher,
+    hash::{Hash, Hasher},
     io::Write as _,
     path::{Path, PathBuf},
-    time::UNIX_EPOCH,
 };
 
 use rustc_hash::FxHasher;
@@ -21,9 +20,9 @@ use turbotokens_core::cache_dir::{CacheRoot, cache_root_from_env, create_cache_d
 use crate::{CacheCreationRaw, Speed, TokenUsageRaw};
 
 const MAGIC: &[u8; 4] = b"CCPC";
-// Version 2 invalidates entries scanned before whitespace-formatted JSON was
-// accepted. The encoded fields are unchanged, but older caches can omit usage.
-const VERSION: u32 = 2;
+// Version 3 replaces the mtime-only stamp with file identity/change metadata.
+// This also invalidates earlier caches that could omit whitespace-formatted JSON.
+const VERSION: u32 = 3;
 
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -144,11 +143,13 @@ fn cached_scan_with_cache_path<R>(
         return scan_uncached(path, scan);
     };
     let size = metadata.len();
-    let mtime_ns = mtime_nanos(&metadata);
+    let Some(stamp) = metadata_stamp(&metadata) else {
+        return scan_uncached(path, scan);
+    };
 
     if let Some(cached) = read_cache_file(cache_path, read_entry)
         && size == cached.parsed_len
-        && mtime_ns == cached.mtime_ns
+        && stamp == cached.stamp
     {
         return (cached.min_timestamp_ms, cached.entries);
     }
@@ -162,7 +163,7 @@ fn cached_scan_with_cache_path<R>(
         cache_path,
         &encode_cache(
             scanned.consumed,
-            mtime_ns,
+            stamp,
             scanned.min_timestamp_ms,
             &scanned.entries,
             write_entry,
@@ -171,13 +172,22 @@ fn cached_scan_with_cache_path<R>(
     finish_scan(scanned)
 }
 
-fn mtime_nanos(metadata: &fs::Metadata) -> i64 {
-    metadata
-        .modified()
-        .ok()
-        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-        .map(|duration| duration.as_nanos().min(i64::MAX as u128) as i64)
-        .unwrap_or(-1)
+/// Shared by parse and whole-report caches. Reading a file can change atime, so
+/// only metadata that describes identity or writes belongs in this stamp.
+pub(crate) fn metadata_stamp(metadata: &fs::Metadata) -> Option<u64> {
+    let mut hasher = FxHasher::default();
+    metadata.len().hash(&mut hasher);
+    metadata.modified().ok()?.hash(&mut hasher);
+    metadata.created().ok().hash(&mut hasher);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        metadata.dev().hash(&mut hasher);
+        metadata.ino().hash(&mut hasher);
+        metadata.ctime().hash(&mut hasher);
+        metadata.ctime_nsec().hash(&mut hasher);
+    }
+    Some(hasher.finish())
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -191,14 +201,14 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 
 struct CachedFile<R> {
     parsed_len: u64,
-    mtime_ns: i64,
+    stamp: u64,
     min_timestamp_ms: Option<i64>,
     entries: Vec<R>,
 }
 
 fn encode_cache<R>(
     parsed_len: u64,
-    mtime_ns: i64,
+    stamp: u64,
     min_timestamp_ms: Option<i64>,
     entries: &[R],
     write_entry: &impl Fn(&mut Writer, &R),
@@ -207,7 +217,7 @@ fn encode_cache<R>(
     writer.push_bytes(MAGIC);
     writer.push_u32(VERSION);
     writer.push_u64(parsed_len);
-    writer.push_i64(mtime_ns);
+    writer.push_u64(stamp);
     writer.push_i64(min_timestamp_ms.unwrap_or(i64::MIN));
     writer.push_u32(entries.len() as u32);
     for entry in entries {
@@ -236,7 +246,7 @@ fn decode_cache<R>(
         return None;
     }
     let parsed_len = reader.read_u64()?;
-    let mtime_ns = reader.read_i64()?;
+    let stamp = reader.read_u64()?;
     let min_timestamp_ms = match reader.read_i64()? {
         i64::MIN => None,
         value => Some(value),
@@ -249,7 +259,7 @@ fn decode_cache<R>(
     reader.finish()?;
     Some(CachedFile {
         parsed_len,
-        mtime_ns,
+        stamp,
         min_timestamp_ms,
         entries,
     })
@@ -571,7 +581,7 @@ mod tests {
         let decoded = decode_cache(&bytes, &read_line_entry).expect("payload decodes");
 
         assert_eq!(decoded.parsed_len, 42);
-        assert_eq!(decoded.mtime_ns, 123_456_789);
+        assert_eq!(decoded.stamp, 123_456_789);
         assert_eq!(decoded.min_timestamp_ms, Some(99));
         assert_eq!(decoded.entries, entries);
     }
@@ -600,7 +610,7 @@ mod tests {
         // record. Matching size/mtime must not preserve that missing usage.
         let mut old = encode_cache(
             metadata.len(),
-            super::mtime_nanos(&metadata),
+            super::metadata_stamp(&metadata).unwrap(),
             None,
             &[],
             &write_line_entry,
@@ -620,6 +630,43 @@ mod tests {
         );
 
         assert_eq!(result.1, ["one"]);
+    }
+
+    #[test]
+    fn replacing_a_file_with_matching_size_and_mtime_invalidates_parse_cache() {
+        let fixture = fs_fixture!({ "cache/.keep": "", "log.jsonl": "old\n" });
+        let path = fixture.path("log.jsonl");
+        let fixed_time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        let set_time = |path: &std::path::Path| {
+            fs::OpenOptions::new()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(fixed_time))
+                .unwrap();
+        };
+        set_time(&path);
+        let cache_path = cache_file_path(&fixture.path("cache"), "test", &path);
+        let scan = || {
+            cached_scan_with_cache_path(
+                &path,
+                &cache_path,
+                &line_scan,
+                &write_line_entry,
+                &read_line_entry,
+            )
+            .1
+        };
+        assert_eq!(scan(), ["old"]);
+        let before = fs::metadata(&path).unwrap();
+        let replacement = fixture.path("replacement.tmp");
+        fs::write(&replacement, "new\n").unwrap();
+        set_time(&replacement);
+        fs::rename(&replacement, &path).unwrap();
+        let after = fs::metadata(&path).unwrap();
+        assert_eq!(before.len(), after.len());
+        assert_eq!(before.modified().unwrap(), after.modified().unwrap());
+        assert_eq!(scan(), ["new"]);
     }
 
     #[test]

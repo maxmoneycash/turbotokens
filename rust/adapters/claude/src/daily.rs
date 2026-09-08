@@ -40,7 +40,7 @@ pub(super) fn load_daily_summaries_inner(
     }
 
     // Repeat reports over an unchanged dataset are served from the report
-    // cache: the key folds in the file list, file sizes/mtimes, every arg that
+    // cache: the key folds in the file list, file metadata stamps, every arg that
     // affects loading, and the binary build (embedded pricing can change
     // between builds). Online mode is excluded because a pricing refresh would
     // make a cached report stale.
@@ -148,7 +148,7 @@ fn daily_report_key(
         return None;
     }
     let mut hasher = FxHasher::default();
-    hasher.write(b"report-v1");
+    hasher.write(b"report-v2");
     // Binary identity: a rebuild can change the embedded pricing snapshot.
     if let Ok(exe) = std::env::current_exe()
         && let Ok(metadata) = exe.metadata()
@@ -197,28 +197,22 @@ fn daily_report_key(
     for (file, entry) in files.iter().zip(metadata) {
         hasher.write(file.as_os_str().as_encoded_bytes());
         match entry {
-            Some((len, mtime_ns)) => {
+            Some((len, stamp)) => {
                 hasher.write_u64(len);
-                hasher.write_i64(mtime_ns);
+                hasher.write_u64(stamp);
             }
-            None => hasher.write_u64(u64::MAX),
+            None => return None,
         }
     }
     Some(hasher.finish())
 }
 
-fn file_metadata(file: &PathBuf) -> Option<(u64, i64)> {
+fn file_metadata(file: &PathBuf) -> Option<(u64, u64)> {
     let metadata = fs::metadata(file).ok()?;
-    let mtime_ns = metadata
-        .modified()
-        .ok()
-        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-        .map(|since_epoch| since_epoch.as_nanos().min(i64::MAX as u128) as i64)
-        .unwrap_or(-1);
-    Some((metadata.len(), mtime_ns))
+    Some((metadata.len(), cache::metadata_stamp(&metadata)?))
 }
 
-fn parallel_metadata(files: &[PathBuf], single_thread: bool) -> Vec<Option<(u64, i64)>> {
+fn parallel_metadata(files: &[PathBuf], single_thread: bool) -> Vec<Option<(u64, u64)>> {
     let worker_count = if single_thread {
         1
     } else {
@@ -1048,6 +1042,52 @@ mod tests {
     };
     use crate::TokenUsageRaw;
     use crate::cache::{Reader, Writer};
+
+    #[test]
+    fn report_cache_key_tracks_replacement_with_preserved_size_and_mtime() {
+        use std::{
+            fs,
+            time::{Duration, UNIX_EPOCH},
+        };
+        let fixture = turbotokens_test_support::fs_fixture!({ "log.jsonl": "old\n" });
+        let path = fixture.path("log.jsonl");
+        let fixed_time = UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+        let set_time = |path: &std::path::Path| {
+            fs::OpenOptions::new()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(fixed_time))
+                .unwrap();
+        };
+        set_time(&path);
+        let shared = crate::cli::SharedArgs {
+            offline: true,
+            ..Default::default()
+        };
+        let key = || {
+            super::daily_report_key(
+                &shared,
+                std::slice::from_ref(&path),
+                None,
+                false,
+                &jiff::tz::TimeZone::UTC,
+            )
+        };
+        let before_key = key();
+        let before = fs::metadata(&path).unwrap();
+        let replacement = fixture.path("replacement.tmp");
+        fs::write(&replacement, "new\n").unwrap();
+        set_time(&replacement);
+        fs::rename(&replacement, &path).unwrap();
+        let after = fs::metadata(&path).unwrap();
+        assert_eq!(before.len(), after.len());
+        assert_eq!(before.modified().unwrap(), after.modified().unwrap());
+        assert!(before_key.is_some());
+        assert_ne!(before_key, key());
+        fs::remove_file(&path).unwrap();
+        assert!(key().is_none());
+    }
 
     #[test]
     fn report_cache_key_tracks_resolved_timezone() {
