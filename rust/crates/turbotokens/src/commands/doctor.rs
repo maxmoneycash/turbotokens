@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde_json::{Value, json};
+use turbotokens_core::cache_dir::{CacheRoot, cache_root_from_env};
 
 use crate::{
     Result, adapter::claude, cli::SharedArgs, cli_error, home, pricing::PricingMap,
@@ -211,20 +212,28 @@ fn check_other_agents() -> Check {
 }
 
 fn check_cache() -> Check {
-    if let Ok(value) = env::var("TURBOTOKENS_CACHE") {
-        let value = value.trim();
-        if value.eq_ignore_ascii_case("off") || value.eq_ignore_ascii_case("false") || value == "0"
-        {
+    check_cache_root(cache_root_from_env())
+}
+
+fn check_cache_root(root: CacheRoot) -> Check {
+    let root = match root {
+        CacheRoot::Disabled => {
             return Check::new(
                 "parse cache",
                 Status::Info,
                 "disabled via TURBOTOKENS_CACHE",
             );
         }
-    }
-    let root = env::var("TURBOTOKENS_CACHE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| env::temp_dir().join("turbotokens-cache"));
+        CacheRoot::Unavailable => {
+            return Check::new(
+                "parse cache",
+                Status::Info,
+                "disabled: no usable home directory",
+            )
+            .with_hint("Set TURBOTOKENS_CACHE_DIR to a directory you control.");
+        }
+        CacheRoot::Dir(root) => root,
+    };
     if !root.is_dir() {
         return Check::new(
             "parse cache",
@@ -467,5 +476,27 @@ mod tests {
         assert_eq!(format_bytes(512), "512 B");
         assert_eq!(format_bytes(2048), "2.0 KB");
         assert_eq!(format_bytes(3 * 1024 * 1024 + 1024 * 512), "3.5 MB");
+    }
+
+    #[test]
+    fn reports_why_the_cache_is_disabled() {
+        let disabled = check_cache_root(CacheRoot::Disabled);
+        assert_eq!(disabled.detail, "disabled via TURBOTOKENS_CACHE");
+        let unavailable = check_cache_root(CacheRoot::Unavailable);
+        assert_eq!(unavailable.detail, "disabled: no usable home directory");
+        assert!(unavailable.hint.unwrap().contains("TURBOTOKENS_CACHE_DIR"));
+    }
+
+    #[test]
+    fn reports_the_resolved_cache_directory() {
+        let fixture = turbotokens_test_support::fs_fixture!({ "cache/entry.bin": "data" });
+        let root = fixture.path("cache");
+        let check = check_cache_root(CacheRoot::Dir(root.clone()));
+
+        assert_eq!(check.status.as_str(), "ok");
+        assert_eq!(check.detail, format!("{} (1 entries, 4 B)", root.display()));
+        let missing = check_cache_root(CacheRoot::Dir(fixture.path("missing")));
+        assert_eq!(missing.status.as_str(), "info");
+        assert!(missing.detail.ends_with("not created yet"));
     }
 }

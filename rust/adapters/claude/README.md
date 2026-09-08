@@ -7,7 +7,7 @@ into the usage entries the reports render.
 
 - `daily.rs` — the daily report path, which reads the same files with a narrower parser.
 - `paths.rs` — environment variables, default directories, and file discovery.
-- `cache.rs` — on-disk parse cache: per-file scanned entries keyed by path/size/mtime, with incremental append re-scans.
+- `cache.rs` — on-disk parse cache: per-file scanned entries keyed by path/size/mtime; changed files are rescanned to handle both appends and rewrites.
 - `live.rs` — the `turbotokens live` real-time telemetry stream (dashboard, NDJSON, and human-line output modes).
 
 Anything that is not specific to this source belongs in `turbotokens-core` or
@@ -21,6 +21,19 @@ Record shapes, token mapping, and cost rules are documented in [`src/README.md`]
 
 Reads plain files through `turbotokens-adapter-common`, which handles walking, size-balanced
 chunking, and ordered parallel reads.
+
+## Parse cache
+
+Unchanged files reuse cached records; changed files are rescanned. The default
+cache lives in `~/Library/Caches/turbotokens` on macOS,
+`$XDG_CACHE_HOME/turbotokens` (or `~/.cache/turbotokens`) on other Unix systems,
+and `%LOCALAPPDATA%/turbotokens` on Windows. Without a usable home directory,
+automatic caching is disabled.
+
+`TURBOTOKENS_CACHE_DIR` selects a trusted cache directory explicitly.
+`TURBOTOKENS_CACHE=off` disables the cache. New cache directories and files use
+Unix permissions `0700` and `0600`, respectively. `turbotokens doctor` reports
+the selected location. Existing temporary caches are left untouched.
 
 ## Public surface
 

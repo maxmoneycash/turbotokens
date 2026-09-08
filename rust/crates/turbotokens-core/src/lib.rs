@@ -1,6 +1,7 @@
 use std::{fmt, io};
 
 pub mod agent_report;
+pub mod cache_dir;
 pub mod cost;
 pub mod date_utils;
 pub mod fast;

@@ -9,6 +9,10 @@ The v1.1.2 Linux archives require glibc 2.39. Changing the workflow does not cha
 those published archives. A new release must pass the checks below before its
 checksums are added to the install packages.
 
+The [2026-09-08 validation run](https://github.com/maxmoneycash/turbotokens/actions/runs/34217300332)
+passed static-linkage and container-report checks for both Linux architectures
+at commit `8b137a80`, covering all six architecture/distribution combinations.
+
 `packaging/smoke-linux.py` runs each new binary in Ubuntu 22.04, Debian 12, and
 Alpine 3.22 containers. It verifies the exact version, reads a synthetic Claude
 log with a duplicate event, checks all four token categories, and compares the

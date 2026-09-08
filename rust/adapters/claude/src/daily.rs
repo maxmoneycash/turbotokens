@@ -23,7 +23,7 @@ use crate::{
 
 use super::{
     advisor_usages_from_line, cache, chunk_file_indexes_by_size, has_unsupported_null_field,
-    is_semver_prefix,
+    has_usage_object, is_semver_prefix,
     paths::{claude_paths, extract_project, usage_files},
     usage_dedupe_hash,
 };
@@ -44,7 +44,8 @@ pub(super) fn load_daily_summaries_inner(
     // affects loading, and the binary build (embedded pricing can change
     // between builds). Online mode is excluded because a pricing refresh would
     // make a cached report stale.
-    let report_key = daily_report_key(shared, &files, project_filter, group_by_project);
+    let tz = parse_tz(shared.timezone.as_deref()).unwrap_or_else(JiffTimeZone::system);
+    let report_key = daily_report_key(shared, &files, project_filter, group_by_project, &tz);
     if let Some(key) = report_key
         && let Some(summaries) =
             cache::read_report_blob("claude-daily", key).and_then(|bytes| decode_summaries(&bytes))
@@ -61,15 +62,14 @@ pub(super) fn load_daily_summaries_inner(
             shared.pricing_overrides.iter(),
         ))
     };
-    let tz = parse_tz(shared.timezone.as_deref()).or_else(|| Some(JiffTimeZone::system()));
     let mode = shared.mode;
     let loaded_files = if shared.single_thread {
         files
             .iter()
-            .map(|file| read_daily_usage_file(file, tz.as_ref(), mode, pricing.as_ref()))
+            .map(|file| read_daily_usage_file(file, Some(&tz), mode, pricing.as_ref()))
             .collect::<Vec<_>>()
     } else {
-        read_daily_usage_files_parallel(&files, tz.as_ref(), mode, pricing.as_ref())
+        read_daily_usage_files_parallel(&files, Some(&tz), mode, pricing.as_ref())
     };
 
     let entry_capacity = loaded_files.iter().map(|file| file.entries.len()).sum();
@@ -142,6 +142,7 @@ fn daily_report_key(
     files: &[PathBuf],
     project_filter: Option<&str>,
     group_by_project: bool,
+    timezone: &JiffTimeZone,
 ) -> Option<u64> {
     if !shared.offline {
         return None;
@@ -159,7 +160,13 @@ fn daily_report_key(
             hasher.write_u128(since_epoch.as_nanos());
         }
     }
-    hasher.write(shared.timezone.as_deref().unwrap_or_default().as_bytes());
+    // Hash the resolved zone so changing TZ or the system zone invalidates
+    // reports even when --timezone is omitted. Opaque local TZif files cannot
+    // be identified reliably, so leave their reports uncached.
+    let timezone = jiff::fmt::temporal::DateTimePrinter::new()
+        .time_zone_to_string(timezone)
+        .ok()?;
+    hasher.write(timezone.as_bytes());
     hasher.write_u8(match shared.mode {
         CostMode::Auto => 0,
         CostMode::Calculate => 1,
@@ -597,7 +604,7 @@ pub(super) struct DailyRawEntry {
 }
 
 fn scan_daily_bytes(bytes: &[u8]) -> cache::ScanResult<DailyRawEntry> {
-    let usage_marker = memmem::Finder::new(br#""usage":{"#);
+    let usage_marker = memmem::Finder::new(br#""usage""#);
     let mut result = cache::ScanResult::new();
     // One SIMD pass for the usage marker instead of walking all ~2M lines and
     // probing each: hits map back to their containing line with localized
@@ -640,7 +647,7 @@ pub(super) fn scan_daily_line(
     min_timestamp_ms: &mut Option<i64>,
     out: &mut Vec<DailyRawEntry>,
 ) {
-    if usage_marker.find(line).is_none() {
+    if !has_usage_object(line, usage_marker) {
         return;
     }
     if has_unsupported_null_field(line) {
@@ -897,9 +904,17 @@ pub(super) fn push_deduped_daily_entry(
         (exact_hash, existing_index)
     });
 
-    if let Some((_, Some(index))) = dedupe_lookup {
+    if let Some((hash, Some(index))) = dedupe_lookup {
         if should_replace_deduped_daily_entry(&entry, &deduped[index]) {
             let previous = Box::new(std::mem::replace(&mut deduped[index], entry));
+            push_deduped_daily_index(deduped_indexes, hash, index);
+            if let Some(message_id) = deduped[index].message_id.as_deref() {
+                push_deduped_daily_index(
+                    deduped_indexes,
+                    usage_dedupe_hash(message_id, None),
+                    index,
+                );
+            }
             return DailyDedupOutcome::Replaced { index, previous };
         }
         return DailyDedupOutcome::Duplicate;
@@ -1035,6 +1050,41 @@ mod tests {
     use crate::cache::{Reader, Writer};
 
     #[test]
+    fn report_cache_key_tracks_resolved_timezone() {
+        let shared = crate::cli::SharedArgs {
+            offline: true,
+            ..Default::default()
+        };
+        let utc = jiff::tz::TimeZone::UTC;
+        let los_angeles = jiff::tz::TimeZone::get("America/Los_Angeles").unwrap();
+        let utc_key = super::daily_report_key(&shared, &[], None, false, &utc);
+        let local_key = super::daily_report_key(&shared, &[], None, false, &los_angeles);
+
+        assert!(utc_key.is_some());
+        assert!(local_key.is_some());
+        assert_ne!(utc_key, local_key);
+        assert_eq!(
+            utc_key,
+            super::daily_report_key(&shared, &[], None, false, &utc)
+        );
+    }
+
+    #[test]
+    fn report_cache_key_tracks_posix_timezone_rules() {
+        let shared = crate::cli::SharedArgs {
+            offline: true,
+            ..Default::default()
+        };
+        let fixed = jiff::tz::TimeZone::posix("EST5").unwrap();
+        let seasonal = jiff::tz::TimeZone::posix("EST5EDT,M3.2.0,M11.1.0").unwrap();
+
+        assert_ne!(
+            super::daily_report_key(&shared, &[], None, false, &fixed),
+            super::daily_report_key(&shared, &[], None, false, &seasonal),
+        );
+    }
+
+    #[test]
     fn roundtrips_daily_raw_entry_cache_encoding() {
         let entries = [
             DailyRawEntry {
@@ -1163,6 +1213,46 @@ mod tests {
     }
 
     #[test]
+    fn refreshes_daily_dedupe_indexes_when_parent_replaces_sidechain_replay() {
+        let mut deduped_indexes = Default::default();
+        let mut deduped = Vec::new();
+
+        for fixture in [
+            DailyEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-sidechain-replay",
+                is_sidechain: true,
+                cache_read_tokens: 50_000,
+                output_tokens: 10,
+            },
+            DailyEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-parent",
+                is_sidechain: false,
+                cache_read_tokens: 20,
+                output_tokens: 10,
+            },
+            DailyEntryFixture {
+                message_id: "msg-parent",
+                request_id: "req-parent",
+                is_sidechain: false,
+                cache_read_tokens: 5,
+                output_tokens: 5,
+            },
+        ] {
+            push_deduped_daily_entry(
+                daily_loaded_entry(fixture),
+                &mut deduped_indexes,
+                &mut deduped,
+            );
+        }
+
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].request_id.as_deref(), Some("req-parent"));
+        assert_eq!(deduped[0].usage.cache_read_input_tokens, 20);
+    }
+
+    #[test]
     fn roundtrips_cached_summaries() {
         let summaries = vec![
             crate::UsageSummary {
@@ -1247,6 +1337,51 @@ mod tests {
         .unwrap();
 
         assert_eq!(data.is_sidechain, Some(true));
+    }
+
+    #[test]
+    fn scans_mixed_whitespace_records_in_file_order() {
+        let record = |id, output| {
+            format!(
+                r#"{{"timestamp":"2026-09-08T01:00:00.000Z","message":{{"id":"msg-{id}","model":"claude-sonnet-4","usage":{{"input_tokens":123,"output_tokens":{output}}}}}}}"#
+            )
+        };
+        let bytes = format!(
+            "{}\r\n{}\n{}",
+            record(1, 10).replace("\":", "\" \t: \t"),
+            record(2, 20),
+            record(3, 30).replace("\":", "\": "),
+        );
+
+        let scanned = super::scan_daily_bytes(bytes.as_bytes());
+
+        assert_eq!(scanned.entries.len(), 2);
+        assert_eq!(scanned.tail_entries.len(), 1);
+        for (index, entry) in scanned
+            .entries
+            .iter()
+            .chain(&scanned.tail_entries)
+            .enumerate()
+        {
+            assert_eq!(entry.message_id, Some(format!("msg-{}", index + 1)));
+            assert_eq!(entry.usage.input_tokens, 123);
+            assert_eq!(entry.usage.output_tokens, ((index + 1) * 10) as u64);
+        }
+        assert_eq!(scanned.consumed as usize, bytes.rfind('\n').unwrap() + 1);
+    }
+
+    #[test]
+    fn accepts_whitespace_in_agent_progress_usage() {
+        let compact = r#"{"data":{"message":{"timestamp":"2026-09-08T01:00:00.000Z","requestId":"req-1","message":{"id":"msg-1","model":"claude-sonnet-4","usage":{"input_tokens":123,"output_tokens":45}}}}}"#;
+        let expected = super::scan_daily_bytes(compact.as_bytes()).tail_entries;
+        assert_eq!(expected.len(), 1);
+
+        let spaced = compact.replace("\":", "\" \t: \t");
+
+        assert_eq!(
+            super::scan_daily_bytes(spaced.as_bytes()).tail_entries,
+            expected
+        );
     }
 
     struct DailyEntryFixture {

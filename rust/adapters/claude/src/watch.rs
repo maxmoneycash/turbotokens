@@ -79,7 +79,7 @@ impl WatchIndex {
             tz,
             mode: shared.mode,
             pricing,
-            usage_marker: memmem::Finder::new(br#""usage":{"#),
+            usage_marker: memmem::Finder::new(br#""usage""#),
             cursors: FxHashMap::default(),
             deduped_indexes: FxHashMap::default(),
             deduped: Vec::new(),

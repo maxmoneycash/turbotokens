@@ -1,26 +1,29 @@
-//! Incremental on-disk parse cache for Claude JSONL usage files.
+//! On-disk parse cache for Claude JSONL usage files.
 //!
 //! Parsing large JSONL logs dominates report runtime, so each source file gets
 //! a sibling cache file holding the timezone/mode/pricing-independent records
 //! scanned from its bytes. Repeat runs validate the cache against the file's
-//! size and mtime and only scan newly appended bytes. All cache I/O is
+//! size and mtime and rescan changed files. All cache I/O is
 //! best-effort: any decode or I/O problem falls back to a full rescan and never
 //! fails the report.
 
 use std::{
-    env, fs,
+    fs,
     hash::Hasher,
-    io::{Read as _, Seek as _, SeekFrom},
+    io::Write as _,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
 
 use rustc_hash::FxHasher;
+use turbotokens_core::cache_dir::{CacheRoot, cache_root_from_env, create_cache_dir};
 
 use crate::{CacheCreationRaw, Speed, TokenUsageRaw};
 
 const MAGIC: &[u8; 4] = b"CCPC";
-const VERSION: u32 = 1;
+// Version 2 invalidates entries scanned before whitespace-formatted JSON was
+// accepted. The encoded fields are unchanged, but older caches can omit usage.
+const VERSION: u32 = 2;
 
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -64,25 +67,6 @@ fn merge_min(a: Option<i64>, b: Option<i64>) -> Option<i64> {
         (Some(a), None) => Some(a),
         (None, b) => b,
     }
-}
-
-enum CacheRoot {
-    Disabled,
-    Dir(PathBuf),
-}
-
-fn cache_root_from_env() -> CacheRoot {
-    if let Ok(value) = env::var("TURBOTOKENS_CACHE") {
-        let value = value.trim();
-        if value.eq_ignore_ascii_case("off") || value.eq_ignore_ascii_case("false") || value == "0"
-        {
-            return CacheRoot::Disabled;
-        }
-    }
-    let root = env::var("TURBOTOKENS_CACHE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| env::temp_dir().join("turbotokens-cache"));
-    CacheRoot::Dir(root)
 }
 
 fn cache_file_path(root: &Path, kind: &str, source: &Path) -> PathBuf {
@@ -162,38 +146,15 @@ fn cached_scan_with_cache_path<R>(
     let size = metadata.len();
     let mtime_ns = mtime_nanos(&metadata);
 
-    if let Some(cached) = read_cache_file(cache_path, read_entry) {
-        if size == cached.parsed_len && mtime_ns == cached.mtime_ns {
-            return (cached.min_timestamp_ms, cached.entries);
-        }
-        if size > cached.parsed_len
-            && let Some(appended) = read_appended_bytes(path, cached.parsed_len)
-        {
-            let scanned = scan(&appended);
-            let mut entries = cached.entries;
-            entries.extend(scanned.entries);
-            let min_timestamp_ms = merge_min(cached.min_timestamp_ms, scanned.min_timestamp_ms);
-            let parsed_len = cached.parsed_len + scanned.consumed;
-            write_cache_file(
-                cache_path,
-                &encode_cache(
-                    parsed_len,
-                    mtime_ns,
-                    min_timestamp_ms,
-                    &entries,
-                    write_entry,
-                ),
-            );
-            entries.extend(scanned.tail_entries);
-            return (
-                merge_min(min_timestamp_ms, scanned.tail_min_timestamp_ms),
-                entries,
-            );
-        }
-        // The file shrank or was rewritten in place: fall through to a full
-        // rescan.
+    if let Some(cached) = read_cache_file(cache_path, read_entry)
+        && size == cached.parsed_len
+        && mtime_ns == cached.mtime_ns
+    {
+        return (cached.min_timestamp_ms, cached.entries);
     }
 
+    // Growth alone cannot distinguish an append from a rewrite or file
+    // replacement. Rescan any changed file rather than reuse stale rows.
     let Some(scanned) = with_file_bytes(path, |content| scan(content)) else {
         return (None, Vec::new());
     };
@@ -217,14 +178,6 @@ fn mtime_nanos(metadata: &fs::Metadata) -> i64 {
         .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_nanos().min(i64::MAX as u128) as i64)
         .unwrap_or(-1)
-}
-
-fn read_appended_bytes(path: &Path, offset: u64) -> Option<Vec<u8>> {
-    let mut file = fs::File::open(path).ok()?;
-    file.seek(SeekFrom::Start(offset)).ok()?;
-    let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes).ok()?;
-    Some(bytes)
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -314,7 +267,7 @@ fn write_cache_file(path: &Path, bytes: &[u8]) {
     let Some(parent) = path.parent() else {
         return;
     };
-    if fs::create_dir_all(parent).is_err() {
+    if create_cache_dir(parent).is_err() {
         return;
     }
     let tmp_path = parent.join(format!(
@@ -322,7 +275,22 @@ fn write_cache_file(path: &Path, bytes: &[u8]) {
         path.file_name().unwrap_or_default().to_string_lossy(),
         std::process::id()
     ));
-    if fs::write(&tmp_path, bytes).is_err() {
+    // A pre-existing file (including a symlink) must never be overwritten.
+    // Concurrent writers can safely skip this best-effort cache update.
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.mode(0o600);
+    }
+    let Ok(mut file) = options.open(&tmp_path) else {
+        return;
+    };
+    let result = file.write_all(bytes);
+    drop(file);
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
         return;
     }
     if fs::rename(&tmp_path, path).is_err() {
@@ -620,6 +588,41 @@ mod tests {
     }
 
     #[test]
+    fn rescans_cache_created_before_whitespace_acceptance() {
+        let fixture = fs_fixture!({
+            "cache/.keep": "",
+            "data/log.jsonl": "one\n",
+        });
+        let path = fixture.path("data/log.jsonl");
+        let cache_path = cache_file_path(&fixture.path("cache"), "test", &path);
+        let metadata = fs::metadata(&path).unwrap();
+        // Version 1 could cache no entries for a valid whitespace-formatted
+        // record. Matching size/mtime must not preserve that missing usage.
+        let mut old = encode_cache(
+            metadata.len(),
+            super::mtime_nanos(&metadata),
+            None,
+            &[],
+            &write_line_entry,
+        );
+        old[4..8].copy_from_slice(&1_u32.to_le_bytes());
+        let checksum_offset = old.len() - 8;
+        let checksum = super::fnv1a(&old[..checksum_offset]);
+        old[checksum_offset..].copy_from_slice(&checksum.to_le_bytes());
+        super::write_cache_file(&cache_path, &old);
+
+        let result = cached_scan_with_cache_path(
+            &path,
+            &cache_path,
+            &line_scan,
+            &write_line_entry,
+            &read_line_entry,
+        );
+
+        assert_eq!(result.1, ["one"]);
+    }
+
+    #[test]
     fn roundtrips_token_usage_with_all_options() {
         let usages = [
             TokenUsageRaw {
@@ -674,7 +677,7 @@ mod tests {
     }
 
     #[test]
-    fn incrementally_scans_appended_lines() {
+    fn rescans_appended_lines_without_duplicating_tail() {
         let fixture = fs_fixture!({
             "cache/.keep": "",
             "data/log.jsonl": "one\ntwo\n",
@@ -695,7 +698,7 @@ mod tests {
         let second = cached_scan_with_cache_path(
             &path,
             &cache_path,
-            &line_scan,
+            &|_| panic!("an unchanged source should be served from cache"),
             &write_line_entry,
             &read_line_entry,
         );
@@ -707,8 +710,8 @@ mod tests {
         write!(file, "four").unwrap();
         drop(file);
 
-        // Appended bytes are scanned incrementally; the unterminated tail is
-        // reported but not persisted.
+        // Changed sources are rescanned; the unterminated tail is reported
+        // but not persisted.
         let third = cached_scan_with_cache_path(
             &path,
             &cache_path,
@@ -774,5 +777,85 @@ mod tests {
             &read_line_entry,
         );
         assert_eq!(corrupt.1, ["solo"]);
+    }
+
+    #[test]
+    fn rescans_when_file_grows_after_rewrite_or_replacement() {
+        for replace in [false, true] {
+            let fixture = fs_fixture!({
+                "cache/.keep": "",
+                "data/log.jsonl": "old\n",
+            });
+            let path = fixture.path("data/log.jsonl");
+            let cache_path = cache_file_path(&fixture.path("cache"), "test", &path);
+            let first = cached_scan_with_cache_path(
+                &path,
+                &cache_path,
+                &line_scan,
+                &write_line_entry,
+                &read_line_entry,
+            );
+            assert_eq!(first.1, ["old"]);
+
+            if replace {
+                let replacement = fixture.path("data/replacement.jsonl");
+                fs::write(&replacement, "new first\nnew second\n").unwrap();
+                fs::rename(replacement, &path).unwrap();
+            } else {
+                fs::write(&path, "new first\nnew second\n").unwrap();
+            }
+            let updated = cached_scan_with_cache_path(
+                &path,
+                &cache_path,
+                &line_scan,
+                &write_line_entry,
+                &read_line_entry,
+            );
+
+            assert_eq!(updated.1, ["new first", "new second"], "replace={replace}");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cache_write_does_not_follow_existing_temporary_symlink() {
+        let fixture = fs_fixture!({
+            "cache/.keep": "",
+            "other-file": "keep this content",
+        });
+        let path = fixture.path("cache/report.bin");
+        let temporary = fixture.path(&format!("cache/.report.bin.{}.tmp", std::process::id()));
+        std::os::unix::fs::symlink(fixture.path("other-file"), &temporary).unwrap();
+
+        super::write_cache_file(&path, b"cached report");
+
+        assert_eq!(
+            fs::read(fixture.path("other-file")).unwrap(),
+            b"keep this content"
+        );
+        assert!(
+            fs::symlink_metadata(&temporary)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        assert!(!path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cache_write_creates_private_files() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let fixture = fs_fixture!({ "cache/.keep": "" });
+        let path = fixture.path("cache/report.bin");
+
+        super::write_cache_file(&path, b"cached report");
+
+        assert_eq!(fs::read(&path).unwrap(), b"cached report");
+        assert_eq!(
+            fs::metadata(path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
     }
 }

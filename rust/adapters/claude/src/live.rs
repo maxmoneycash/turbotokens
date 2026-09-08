@@ -494,6 +494,28 @@ mod tests {
     }
 
     #[test]
+    fn buffers_and_counts_whitespace_formatted_usage() {
+        let path = Path::new("/tmp/projects/proj-a/sess-1.jsonl");
+        let mut state = live_state();
+        let mut events = Vec::new();
+        let line = usage_line("msg-1", 20).replace("\":", "\" \t: \t");
+        let split = line.find("\"usage\"").unwrap() + "\"usage\" ".len();
+
+        state.feed_bytes(path, &line.as_bytes()[..split], &mut events);
+        assert!(events.is_empty());
+        state.feed_bytes(
+            path,
+            format!("{}\r\n", &line[split..]).as_bytes(),
+            &mut events,
+        );
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].total_tokens(), 135);
+        assert_eq!(state.book.today_totals.total(), 135);
+        assert!(state.index.cursors.get(path).unwrap().tail.is_empty());
+    }
+
+    #[test]
     fn dedupes_replayed_lines_across_feeds() {
         let path = Path::new("/tmp/projects/proj-a/sess-1.jsonl");
         let mut state = live_state();
