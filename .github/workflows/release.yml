@@ -9,6 +9,8 @@ on:
       - .github/workflows/release.yml
       - packaging/smoke-linux.py
       - rust/**
+      - rust-toolchain.toml
+      - .cargo/**
 
 permissions:
   contents: read
@@ -41,8 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+      # rust-toolchain.toml selects the compiler Cargo will actually use.
+      - name: Install target for the repository toolchain
+        run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
