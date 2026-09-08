@@ -7,6 +7,8 @@ mod live;
 mod paths;
 mod resident;
 mod watch;
+#[cfg(windows)]
+mod windows_change_time;
 
 use std::{
     hash::{Hash, Hasher},

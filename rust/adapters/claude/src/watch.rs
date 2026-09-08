@@ -45,10 +45,12 @@ struct FileStamp {
     identity: (u64, u64),
     #[cfg(unix)]
     changed: (i64, i64),
+    #[cfg(windows)]
+    changed: Option<u64>,
 }
 
 impl FileStamp {
-    fn new(metadata: &fs::Metadata) -> Self {
+    fn new(_path: &Path, metadata: &fs::Metadata) -> Self {
         Self {
             size: metadata.len(),
             modified: metadata.modified().ok(),
@@ -63,7 +65,17 @@ impl FileStamp {
                 use std::os::unix::fs::MetadataExt;
                 (metadata.ctime(), metadata.ctime_nsec())
             },
+            #[cfg(windows)]
+            changed: crate::windows_change_time::change_time(_path),
         }
+    }
+
+    fn can_reuse(&self) -> bool {
+        #[cfg(windows)]
+        if self.changed.is_none() {
+            return false;
+        }
+        self.modified.is_some()
     }
 
     fn same_file(&self, other: &Self) -> bool {
@@ -332,8 +344,8 @@ impl WatchIndex {
         let Ok(metadata) = fs::metadata(path) else {
             return false;
         };
-        let stamp = FileStamp::new(&metadata);
-        if stamp.modified.is_some()
+        let stamp = FileStamp::new(path, &metadata);
+        if stamp.can_reuse()
             && self
                 .cursors
                 .get(path)
@@ -399,10 +411,10 @@ type FileSnapshot = (Vec<u8>, FileStamp);
 
 fn read_snapshot(path: &Path) -> Option<FileSnapshot> {
     let mut file = fs::File::open(path).ok()?;
-    let before = FileStamp::new(&file.metadata().ok()?);
+    let before = FileStamp::new(path, &file.metadata().ok()?);
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).ok()?;
-    let after = FileStamp::new(&file.metadata().ok()?);
+    let after = FileStamp::new(path, &file.metadata().ok()?);
     // Retry on the next poll if the writer changed the file during this read.
     (before == after && after.size == bytes.len() as u64).then_some((bytes, after))
 }

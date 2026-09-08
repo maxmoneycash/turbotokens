@@ -46,7 +46,8 @@ unchanged logs still use the parse and report caches. Concurrent writes can
 change the history during a report; rerun after writes settle for stable totals.
 
 Live and resident indexes check file identity/change metadata on each poll,
-including Unix inode and change time. When a file changes, they verify its
+including Unix inode and change time, and Windows file change time. When a file
+changes, they verify its
 existing bytes before treating growth as an append. Rewritten,
 truncated, deleted, or restored logs rebuild the in-memory totals, including
 duplicates that survive in other files. This rebuild does not emit historical

@@ -135,7 +135,7 @@ fn cached_scan_with_cache_path<R>(
         return scan_uncached(path, scan);
     };
     let size = metadata.len();
-    let Some(stamp) = metadata_stamp(&metadata) else {
+    let Some(stamp) = metadata_stamp(path, &metadata) else {
         return scan_uncached(path, scan);
     };
 
@@ -166,7 +166,7 @@ fn cached_scan_with_cache_path<R>(
 
 /// Shared by parse and whole-report caches. Reading a file can change atime, so
 /// only metadata that describes identity or writes belongs in this stamp.
-pub(crate) fn metadata_stamp(metadata: &fs::Metadata) -> Option<u64> {
+pub(crate) fn metadata_stamp(_path: &Path, metadata: &fs::Metadata) -> Option<u64> {
     let mut hasher = FxHasher::default();
     metadata.len().hash(&mut hasher);
     metadata.modified().ok()?.hash(&mut hasher);
@@ -179,6 +179,8 @@ pub(crate) fn metadata_stamp(metadata: &fs::Metadata) -> Option<u64> {
         metadata.ctime().hash(&mut hasher);
         metadata.ctime_nsec().hash(&mut hasher);
     }
+    #[cfg(windows)]
+    crate::windows_change_time::change_time(_path)?.hash(&mut hasher);
     Some(hasher.finish())
 }
 
@@ -621,7 +623,7 @@ mod tests {
         // record. Matching size/mtime must not preserve that missing usage.
         let mut old = encode_cache(
             metadata.len(),
-            super::metadata_stamp(&metadata).unwrap(),
+            super::metadata_stamp(&path, &metadata).unwrap(),
             None,
             &[],
             &write_line_entry,

@@ -209,7 +209,7 @@ fn daily_report_key(
 
 fn file_metadata(file: &PathBuf) -> Option<(u64, u64)> {
     let metadata = fs::metadata(file).ok()?;
-    Some((metadata.len(), cache::metadata_stamp(&metadata)?))
+    Some((metadata.len(), cache::metadata_stamp(file, &metadata)?))
 }
 
 fn parallel_metadata(files: &[PathBuf], single_thread: bool) -> Vec<Option<(u64, u64)>> {
