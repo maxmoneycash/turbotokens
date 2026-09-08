@@ -1,28 +1,28 @@
 class Turbotokens < Formula
   desc "Real-time token and cost telemetry for AI coding agents"
   homepage "https://github.com/maxmoneycash/turbotokens"
-  version "1.1.3"
+  version "1.1.4"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/maxmoneycash/turbotokens/releases/download/v#{version}/turbotokens-macos-arm64.tar.gz"
-      sha256 "e0ebdb307c70edb437ea23e98c2579b6747eefe03726174ce11f69f779768659"
+      sha256 "303560ef862c6d492ebd36b53f8e1330ca006ae3b9833a569bc9c40c6bff6bde"
     end
     on_intel do
       url "https://github.com/maxmoneycash/turbotokens/releases/download/v#{version}/turbotokens-macos-x64.tar.gz"
-      sha256 "517cd526ee149e00e1ca6d29069cac0414e868f3202070b11c1717c619bbc811"
+      sha256 "f9032335e8a5b886fd8af0db2864ad00abbc0db1a50a77d7d4e361812b29d759"
     end
   end
 
   on_linux do
     on_arm do
       url "https://github.com/maxmoneycash/turbotokens/releases/download/v#{version}/turbotokens-linux-arm64.tar.gz"
-      sha256 "7256ba213586a8a37512b3dee112a63c868accd4af9166883ced8c74f4b924fe"
+      sha256 "414ff26afb612af0ec639cc4901343ccfbe1a97a63c63d0179ded0e74fc05078"
     end
     on_intel do
       url "https://github.com/maxmoneycash/turbotokens/releases/download/v#{version}/turbotokens-linux-x64.tar.gz"
-      sha256 "3e024cbbd916e037d5073149a92843960e2871ab8a5d5270ce90d593235f25a3"
+      sha256 "b4039010562d979a15c19af7b4331baf82a2e1bc2e458e7ba4a449d04d220345"
     end
   end
 

@@ -29,7 +29,7 @@
 
 Choose your platform. Native downloads are available for **Apple Silicon / ARM64 and Intel / AMD x64**.
 
-**Release status:** Native downloads and Homebrew install **v1.1.3**. npm currently installs **v1.1.2** while its package update awaits publication. Use the native Windows ZIP for the latest fixes.
+**Release status:** Native downloads and Homebrew install **v1.1.4**. npm currently installs **v1.1.2** while its package update awaits publication. Use the native Windows ZIP for the latest fixes.
 
 ### macOS
 
@@ -43,7 +43,7 @@ For a standalone install, follow the [macOS instructions](docs/installation.md#m
 
 ### Windows
 
-For **v1.1.3**, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run:
+For **v1.1.4**, download the [Windows x64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-x64.zip) or [Windows ARM64 ZIP](https://github.com/maxmoneycash/turbotokens/releases/latest/download/turbotokens-windows-arm64.zip). Extract it, open PowerShell in that folder, and run:
 
 ```powershell
 .\turbotokens.exe doctor
@@ -73,7 +73,7 @@ The installer selects x64 or ARM64 and prints the install location. If it uses `
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-The v1.1.3 Linux downloads are static builds tested on Ubuntu 22.04, Debian 12, and Alpine 3.22. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
+The v1.1.4 Linux downloads are static builds tested on Ubuntu 22.04, Debian 12, and Alpine 3.22. See [Linux instructions](docs/installation.md#linux) for distro compatibility, persistent PATH setup, and pinned releases. No Node.js runtime is needed.
 
 ### Run your first report
 
