@@ -27,7 +27,7 @@ try {
   assert(packed.files.some(file => file.path === 'bin/turbotokens.js'));
   assert(packed.files.some(file => file.path === 'LICENSE'));
   assert(!packed.files.some(file => file.path.startsWith('vendor/')));
-  run(npm, ['install', '--prefix', temporary, '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)]);
+  run(npm, ['install', '--global=false', '--prefix', temporary, '--ignore-scripts=false', '--no-audit', '--no-fund', path.join(temporary, packed.filename)]);
   const executable = path.join(temporary, 'node_modules', '.bin', process.platform === 'win32' ? 'turbotokens.cmd' : 'turbotokens');
   const version = require('../npm/package.json').version;
   assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
