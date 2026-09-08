@@ -47,7 +47,8 @@ the executable. If it reports a missing binary, reinstall with
 
 If a v1.1.2 npm install reports `tar: Cannot connect to C`, use the native ZIP
 below. Git Bash or another PATH override can select an incompatible `tar`.
-The v1.1.3 installer selects Windows' native extractor explicitly.
+The v1.1.3 installer prefers Windows' native extractor when available, and falls
+back to `tar` on PATH when it is absent.
 
 If PowerShell reports that `npm.ps1` or `turbotokens.ps1` cannot run because scripts
 are disabled, use npm's Command Prompt shims directly:

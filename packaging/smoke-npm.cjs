@@ -53,6 +53,21 @@ try {
   assert.equal(run(globalExecutable, ['--version']).trim(), `turbotokens ${version}`);
   console.log('Local and global npm launchers passed');
   const installed = path.join(temporary, 'node_modules', 'turbotokens');
+  if (process.platform === 'win32') {
+    const nativeExtractor = path.join(process.env.SystemRoot || process.env.WINDIR || 'C:\\Windows', 'System32', 'tar.exe');
+    assert(fs.existsSync(nativeExtractor));
+    const fallbackEnvironment = { ...environment };
+    const rootKey = Object.keys(fallbackEnvironment).find(key => key.toLowerCase() === 'systemroot') || 'SystemRoot';
+    const pathKey = Object.keys(fallbackEnvironment).find(key => key.toLowerCase() === 'path') || 'Path';
+    // Only this installer child sees the missing primary path. Keep a known
+    // compatible extractor first on PATH, ahead of the deliberately bad shadow.
+    fallbackEnvironment[rootKey] = path.join(temporary, 'missing Windows root');
+    fallbackEnvironment[pathKey] = path.dirname(nativeExtractor) + path.delimiter + fallbackEnvironment[pathKey];
+    fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
+    run(runtime, [path.join(installed, 'install.js')], { env: fallbackEnvironment });
+    assert.equal(run(executable, ['--version']).trim(), `turbotokens ${version}`);
+    console.log('Windows PATH fallback passed with a missing native extractor');
+  }
   fs.rmSync(path.join(installed, 'vendor'), { recursive: true });
   assert.throws(() => run(executable, ['--version']), error => error.status === 1 && /binary is missing/.test(error.stderr));
   // A corrupt checksum must fail before a binary is installed.
