@@ -129,14 +129,26 @@ fn civil_from_days(days: i64) -> (i32, u32, u32) {
     (year as i32, month as u32, day as u32)
 }
 
-/// Escapes the five XML special characters for text interpolated into SVG.
+/// Escapes SVG text and replaces characters forbidden by XML 1.0.
 pub(super) fn xml_escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&apos;"),
+            '\t'
+            | '\n'
+            | '\r'
+            | '\u{20}'..='\u{d7ff}'
+            | '\u{e000}'..='\u{fffd}'
+            | '\u{10000}'..='\u{10ffff}' => escaped.push(character),
+            _ => escaped.push('\u{fffd}'),
+        }
+    }
+    escaped
 }
 
 #[cfg(test)]
@@ -177,5 +189,21 @@ mod tests {
             xml_escape("a<b>&\"'\""),
             "a&lt;b&gt;&amp;&quot;&apos;&quot;"
         );
+    }
+
+    #[test]
+    fn replaces_characters_forbidden_by_xml() {
+        for character in ('\0'..='\u{1f}')
+            .filter(|character| !matches!(character, '\t' | '\n' | '\r'))
+            .chain(['\u{fffe}', '\u{ffff}'])
+        {
+            assert_eq!(xml_escape(&format!("a{character}b")), "a\u{fffd}b");
+        }
+    }
+
+    #[test]
+    fn preserves_xml_whitespace_and_valid_unicode() {
+        let value = "\t\n\r café 日本語 🦀 \u{20}\u{d7ff}\u{e000}\u{fffd}\u{10000}\u{10ffff}";
+        assert_eq!(xml_escape(value), value);
     }
 }

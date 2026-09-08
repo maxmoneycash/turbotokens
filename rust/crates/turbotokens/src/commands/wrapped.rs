@@ -790,4 +790,19 @@ mod tests {
         assert!(svg.contains(&format!("<title>{name}</title>")));
         assert!(svg.contains('…'));
     }
+
+    #[test]
+    fn svg_replaces_invalid_label_characters_without_changing_json() {
+        let name = "name\0\u{1b}\u{fffe}<>&";
+        let mut stats = compute_stats(2026, &fixture_days(), &[project(name, 1)]);
+        stats.top_model.as_mut().unwrap().name = name.to_string();
+        let svg = render_svg(&stats);
+        assert!(svg.contains("<title>name\u{fffd}\u{fffd}\u{fffd}&lt;&gt;&amp;</title>"));
+        assert!(!svg.contains('\0'));
+        assert!(!svg.contains('\u{1b}'));
+        assert!(!svg.contains('\u{fffe}'));
+        let report = stats_json(&stats);
+        assert_eq!(report["topModel"]["model"], json!(name));
+        assert_eq!(report["topProject"]["project"], json!(name));
+    }
 }
