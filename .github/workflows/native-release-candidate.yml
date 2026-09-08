@@ -1,0 +1,285 @@
+name: Reviewed native v1.1.3 candidate with SVG fix
+
+on:
+  push:
+    branches: [validation/native-release-v1.1.3-r2]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  RELEASE_SOURCE: 27ceda8944e85429ddd8e62e650c7994459a9568
+
+jobs:
+  inputs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SOURCE }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify source and retain one pricing snapshot for all targets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "27ceda8944e85429ddd8e62e650c7994459a9568"
+          git diff --exit-code fe77dabc24f89019cdbebf362fe46ddb27b9b5fb HEAD -- rust rust-toolchain.toml .cargo .gitattributes packaging/smoke-native.py packaging/smoke-linux.py packaging/RELEASE_README.md
+          git diff --exit-code d54c9bfb1b580660e47fce78f5d653841beada88 HEAD -- npm/install.js npm/bin/turbotokens.js npm/test/launcher.test.cjs packaging/smoke-npm.cjs
+          git diff --exit-code c4960f34a14a945e5e4c5238b29842c76070e9e4 HEAD -- rust/Cargo.lock
+          python3 - <<'PY'
+          import json, subprocess
+          base = "822b236b3900294276bac9c5d19ba28b4c0b2530"
+          visual = "rust/crates/turbotokens/src/commands/visual.rs"
+          wrapped = "rust/crates/turbotokens/src/commands/wrapped.rs"
+          changed = subprocess.check_output(["git", "diff", "--name-only", base, "HEAD", "--", "rust"], text=True).splitlines()
+          assert sorted(changed) == sorted([visual, wrapped]), changed
+          def source(revision, path):
+              return subprocess.check_output(["git", "show", revision + ":" + path], text=True)
+          assert source(base, wrapped).split("#[cfg(test)]", 1)[0] == source("HEAD", wrapped).split("#[cfg(test)]", 1)[0]
+          before = source(base, visual).split("/// Escapes the five XML special characters", 1)[0]
+          after = source("HEAD", visual).split("/// Escapes SVG text and replaces characters", 1)[0]
+          assert before == after
+          print(json.dumps({"soak_source": base, "release_source": "27ceda8944e85429ddd8e62e650c7994459a9568", "rust_changes": changed,
+                            "scope": "Only SVG label escaping and its unit tests differ; report/cache code and the stress harness are unchanged."}))
+          PY
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess, urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          def api(route):
+              return json.loads(subprocess.check_output(["gh", "api", route]))
+          source_ci = api("repos/maxmoneycash/turbotokens/actions/runs/34262179799")
+          assert source_ci["head_sha"] == os.environ["RELEASE_SOURCE"]
+          assert source_ci["status"] == "completed" and source_ci["conclusion"] == "success"
+          pricing_commit = "eeb7732fc11fd47762ca84cc3fb7cc74235d7097"
+          assert re.fullmatch(r"[0-9a-f]{40}", pricing_commit)
+          url = "https://raw.githubusercontent.com/BerriAI/litellm/" + pricing_commit + "/model_prices_and_context_window.json"
+          with urllib.request.urlopen(url, timeout=60) as response:
+              snapshot = response.read(32 * 1024 * 1024 + 1)
+          assert len(snapshot) == 2311609
+          assert hashlib.sha256(snapshot).hexdigest() == "f68d88c12610ea31ab355a1293fde55aeed6fa78a1f4b182c67be47d80b1d202"
+          data = json.loads(snapshot)
+          assert isinstance(data, dict) and data
+          Path("model_prices_and_context_window.json").write_bytes(snapshot)
+          metadata = {
+              "source_sha": os.environ["RELEASE_SOURCE"],
+              "soak_source_sha": "822b236b3900294276bac9c5d19ba28b4c0b2530",
+              "source_ci_run": 34262179799,
+              "prepared_at": datetime.now(timezone.utc).isoformat(),
+              "pricing": {"source_commit": pricing_commit, "url": url,
+                          "sha256": hashlib.sha256(snapshot).hexdigest(), "bytes": len(snapshot)},
+          }
+          Path("release-inputs.json").write_text(json.dumps(metadata, indent=2) + "\n")
+          print(json.dumps(metadata, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-release-inputs
+          path: |
+            model_prices_and_context_window.json
+            release-inputs.json
+          if-no-files-found: error
+
+  build:
+    needs: inputs
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: aarch64-apple-darwin
+            asset: turbotokens-macos-arm64.tar.gz
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: turbotokens-macos-x64.tar.gz
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            asset: turbotokens-linux-x64.tar.gz
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            asset: turbotokens-linux-arm64.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: turbotokens-windows-x64.zip
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            asset: turbotokens-windows-arm64.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SOURCE }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-release-inputs
+          path: .release-inputs
+      - name: Verify the shared pricing snapshot
+        shell: bash
+        run: |
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then python_command=python; fi
+          "$python_command" - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(".release-inputs")
+          metadata = json.loads((root / "release-inputs.json").read_text())
+          snapshot = root / "model_prices_and_context_window.json"
+          assert metadata["source_sha"] == os.environ["RELEASE_SOURCE"]
+          assert hashlib.sha256(snapshot.read_bytes()).hexdigest() == metadata["pricing"]["sha256"]
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as environment:
+              environment.write("TURBOTOKENS_PRICING_JSON_PATH=" + str(snapshot.resolve()) + "\n")
+          print(json.dumps(metadata, sort_keys=True))
+          PY
+      - uses: dtolnay/rust-toolchain@stable
+      # rust-toolchain.toml selects the compiler Cargo will actually use.
+      - name: Install target for the repository toolchain
+        run: rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Configure static Linux build
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends musl-tools
+          target='${{ matrix.target }}'
+          echo "CC_${target//-/_}=musl-gcc" >> "$GITHUB_ENV"
+          echo "AR_${target//-/_}=ar" >> "$GITHUB_ENV"
+          target="${target^^}"
+          echo "CARGO_TARGET_${target//-/_}_LINKER=musl-gcc" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_${target//-/_}_RUSTFLAGS=-C target-feature=+crt-static" >> "$GITHUB_ENV"
+
+      - name: Build release binary
+        run: cargo build --locked --release --bin turbotokens --features fetch-litellm-pricing --target ${{ matrix.target }}
+        working-directory: rust
+
+      - name: Verify binary and release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_id="$(cargo pkgid --manifest-path rust/Cargo.toml --package turbotokens)"
+          version="${package_id##*#}"
+          version="${version##*@}"
+          test "$version" = "1.1.3"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SOURCE"
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match Rust version $version" >&2
+            exit 1
+          fi
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          if [[ "$RUNNER_OS" == Windows ]]; then binary="$binary.exe"; fi
+          test "$("$binary" --version)" = "turbotokens $version"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Verify native reports and cache updates
+        id: native_smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="./rust/target/${{ matrix.target }}/release/turbotokens"
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary="$binary.exe"
+            python_command=python
+          fi
+          "$python_command" packaging/smoke-native.py "$binary" --output "native-smoke-${{ matrix.target }}.json"
+
+      - name: Keep native smoke evidence
+        if: always() && steps.native_smoke.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-smoke-${{ matrix.target }}
+          path: native-smoke-${{ matrix.target }}*.json
+          if-no-files-found: warn
+
+      - name: Verify static Linux linkage and container reports
+        if: runner.os == 'Linux'
+        run: python3 packaging/smoke-linux.py ./rust/target/${{ matrix.target }}/release/turbotokens "$RELEASE_VERSION"
+
+      - name: Package tarball
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist
+          cp "rust/target/${{ matrix.target }}/release/turbotokens" dist/turbotokens
+          sed "s/@REVISION@/$RELEASE_SOURCE/g" packaging/RELEASE_README.md > dist/README.md
+          cp LICENSE dist/
+          tar -C dist -czf "${{ matrix.asset }}" turbotokens README.md LICENSE
+
+      - name: Package zip (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          mkdir -p dist
+          cp "rust/target/${{ matrix.target }}/release/turbotokens.exe" dist/turbotokens.exe
+          (Get-Content -Raw packaging/RELEASE_README.md).Replace('@REVISION@', $env:RELEASE_SOURCE) | Set-Content -Encoding utf8 dist/README.md
+          cp LICENSE dist/
+          Compress-Archive -Path dist/turbotokens.exe, dist/README.md, dist/LICENSE -DestinationPath "${{ matrix.asset }}"
+
+      - name: Verify packaged contents and record hashes
+        shell: bash
+        run: |
+          python_command=python3
+          if [[ "$RUNNER_OS" == Windows ]]; then python_command=python; fi
+          "$python_command" - <<'PY'
+          import hashlib, io, json, os, subprocess, tarfile, zipfile
+          from pathlib import Path
+          asset = "${{ matrix.asset }}"
+          target = "${{ matrix.target }}"
+          binary = "turbotokens.exe" if os.name == "nt" else "turbotokens"
+          expected = {binary, "README.md", "LICENSE"}
+          if asset.endswith(".zip"):
+              with zipfile.ZipFile(asset) as archive:
+                  assert len(archive.infolist()) == 3
+                  assert set(archive.namelist()) == expected
+                  assert all(not entry.is_dir() for entry in archive.infolist())
+                  contents = {name: archive.read(name) for name in expected}
+          else:
+              with tarfile.open(asset, "r:gz") as archive:
+                  assert len(archive.getmembers()) == 3
+                  assert {entry.name for entry in archive.getmembers()} == expected
+                  assert all(entry.isfile() for entry in archive.getmembers())
+                  assert archive.getmember(binary).mode & 0o111
+                  contents = {name: archive.extractfile(name).read() for name in expected}
+          source = os.environ["RELEASE_SOURCE"]
+          readme = contents["README.md"].decode("utf-8-sig")
+          assert "@REVISION@" not in readme
+          for guide in ["README.md", "docs/installation.md", "docs/migrating-from-ccusage.md", "docs/usage.md"]:
+              assert "https://github.com/maxmoneycash/turbotokens/blob/" + source + "/" + guide in readme
+          assert contents["LICENSE"] == Path("LICENSE").read_bytes()
+          executable = Path("rust/target") / target / "release" / binary
+          assert contents[binary] == executable.read_bytes()
+          inputs = json.loads(Path(".release-inputs/release-inputs.json").read_text())
+          evidence = {
+              "source_sha": source, "target": target, "asset": asset,
+              "archive_sha256": hashlib.sha256(Path(asset).read_bytes()).hexdigest(),
+              "archive_bytes": Path(asset).stat().st_size,
+              "binary_sha256": hashlib.sha256(contents[binary]).hexdigest(),
+              "version": subprocess.check_output([str(executable.resolve()), "--version"], text=True).strip(),
+              "rustc": subprocess.check_output(["rustc", "--version"], text=True).strip(),
+              "pricing": inputs["pricing"], "members": sorted(expected),
+          }
+          assert evidence["version"] == "turbotokens 1.1.3"
+          Path("archive-evidence-" + target + ".json").write_text(json.dumps(evidence, indent=2) + "\n")
+          print(json.dumps(evidence, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-evidence-${{ matrix.target }}
+          path: archive-evidence-${{ matrix.target }}.json
+          if-no-files-found: error
+
+      - name: Keep validated archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
