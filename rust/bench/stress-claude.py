@@ -154,6 +154,8 @@ class StressRun:
         self.recent = deque(maxlen=32)
         self.last_results = {}
         self.last_expected = {}
+        self.report_cache = None
+        self.peak_report_files = 0
         self.before = {}
         self.started = time.monotonic()
         self.last_progress = self.started
@@ -249,7 +251,19 @@ class StressRun:
             raise AssertionError("cached/warm/uncached JSON bytes differ")
         self.checkpoints += 1
         if time.monotonic() - self.last_progress >= 30:
+            self.check_report_cache()
             self.progress("PASS")
+
+    def check_report_cache(self):
+        files = [path for directory in (self.root / "cache").glob("report-*")
+                 if directory.is_dir() for path in directory.glob("*.bin")]
+        self.peak_report_files = max(self.peak_report_files, len(files))
+        self.report_cache = {"files": len(files),
+                             "bytes": sum(path.stat().st_size for path in files),
+                             "peak_sampled_files": self.peak_report_files}
+        limit = self.args.max_report_cache_files
+        if limit is not None and len(files) > limit:
+            raise AssertionError("report cache contains %d files; limit is %d" % (len(files), limit))
 
     def progress(self, status):
         self.last_progress = time.monotonic()
@@ -358,6 +372,7 @@ class StressRun:
                 self.rng.shuffle(cycle)
             self.mutate(cycle.pop())
             self.steps_completed = self.step
+        self.check_report_cache()
 
     def evidence(self, status):
         return {
@@ -374,6 +389,8 @@ class StressRun:
             "arguments": self.arguments[:-2] + ["--config", "<isolated neutral.json>"],
             "scope": "Synthetic Claude daily reports only; independent current-record oracle for all four token categories and recorded cost; cached/warm/uncached byte parity. No live, daemon, or performance claims.",
             "max_records_per_file": MAX_RECORDS_PER_FILE,
+            "report_cache": self.report_cache,
+            "max_report_cache_files": self.args.max_report_cache_files,
             "operations": dict(self.operations), "recent_checkpoints": list(self.recent),
             "last_oracle": self.last_expected,
         }
@@ -406,6 +423,8 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--duration-seconds", type=float,
                         help="Run for this duration instead of stopping at --steps")
+    parser.add_argument("--max-report-cache-files", type=int,
+                        help="Fail if report-cache files exceed this count; sampled every 30 seconds and at completion")
     args = parser.parse_args()
     if not args.turbotokens.is_absolute() or not args.turbotokens.is_file():
         parser.error("--turbotokens must name an existing absolute executable path")
@@ -413,6 +432,8 @@ def main():
         parser.error("--turbotokens must be executable")
     if args.steps < 1:
         parser.error("--steps must be positive")
+    if args.max_report_cache_files is not None and args.max_report_cache_files < 1:
+        parser.error("--max-report-cache-files must be positive")
     if args.duration_seconds is not None and (
             not math.isfinite(args.duration_seconds) or args.duration_seconds <= 0):
         parser.error("--duration-seconds must be finite and positive")
@@ -441,6 +462,8 @@ def main():
                 "--turbotokens", str(failure / "snapshot" / run.binary.name),
                 "--seed", str(args.seed), "--steps", str(max(1, run.step)),
                 "--output", str(failure / "reproduction.json")]
+            if args.max_report_cache_files is not None:
+                result["reproduce"] += ["--max-report-cache-files", str(args.max_report_cache_files)]
             (failure / "failure.json").write_text(json.dumps(result, indent=2) + "\n")
             print("Saved failing seed/step, fixtures, binary, and output: " + str(failure),
                   file=sys.stderr, flush=True)

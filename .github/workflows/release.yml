@@ -132,7 +132,7 @@ jobs:
             python_command=python
           fi
           binary="$("$python_command" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve())' "$binary")"
-          "$python_command" rust/bench/stress-claude.py --turbotokens "$binary" --seed 20260908 --duration-seconds "$SOAK_SECONDS" --output "extended-soak-${{ matrix.target }}.json"
+          "$python_command" rust/bench/stress-claude.py --turbotokens "$binary" --seed 20260908 --duration-seconds "$SOAK_SECONDS" --max-report-cache-files 256 --output "extended-soak-${{ matrix.target }}.json"
 
       - name: Keep extended mutation evidence
         if: always() && steps.extended_soak.outcome != 'skipped'

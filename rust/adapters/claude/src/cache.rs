@@ -24,6 +24,10 @@ const MAGIC: &[u8; 4] = b"CCPC";
 // This also invalidates earlier caches that could omit whitespace-formatted JSON.
 const VERSION: u32 = 3;
 
+const REPORT_MAGIC: &[u8; 4] = b"CCRB";
+const REPORT_VERSION: u32 = 2;
+const REPORT_SLOT_COUNT: u64 = 256;
+
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 
@@ -302,32 +306,59 @@ fn write_cache_file(path: &Path, bytes: &[u8]) {
     }
 }
 
-/// Content-addressed blob store for derived report data (final summary rows).
+/// Bounded blob store for derived report data (final summary rows).
 /// The caller folds every input that affects the report — dataset fingerprint,
-/// args, binary build — into `key`, so any change simply lands on a different
-/// blob. Payloads carry the same FNV-1a checksum as parse cache files.
+/// args, binary build — into `key`. Each kind keeps at most 256 slots; collisions
+/// replace older blobs. The checksum covers the full key as well as the payload,
+/// and reads require an exact key match so collisions only cause cache misses.
 pub(crate) fn read_report_blob(kind: &str, key: u64) -> Option<Vec<u8>> {
     let CacheRoot::Dir(root) = cache_root_from_env() else {
         return None;
     };
     let bytes = fs::read(report_blob_path(&root, kind, key)).ok()?;
+    decode_report_blob(&bytes, key).map(<[u8]>::to_vec)
+}
+
+fn decode_report_blob(bytes: &[u8], key: u64) -> Option<&[u8]> {
     let (payload, checksum) = bytes.split_at(bytes.len().checked_sub(8)?);
     let expected = u64::from_le_bytes(checksum.try_into().ok()?);
-    (fnv1a(payload) == expected).then(|| payload.to_vec())
+    if fnv1a(payload) != expected {
+        return None;
+    }
+    let mut reader = Reader::new(payload);
+    if reader.read_bytes(4)? != REPORT_MAGIC
+        || reader.read_u32()? != REPORT_VERSION
+        || reader.read_u64()? != key
+    {
+        return None;
+    }
+    Some(&payload[reader.pos..])
 }
 
 pub(crate) fn write_report_blob(kind: &str, key: u64, payload: &[u8]) {
     let CacheRoot::Dir(root) = cache_root_from_env() else {
         return;
     };
-    let mut bytes = payload.to_vec();
+    write_cache_file(
+        &report_blob_path(&root, kind, key),
+        &encode_report_blob(key, payload),
+    );
+}
+
+fn encode_report_blob(key: u64, payload: &[u8]) -> Vec<u8> {
+    let mut writer = Writer::new();
+    writer.push_bytes(REPORT_MAGIC);
+    writer.push_u32(REPORT_VERSION);
+    writer.push_u64(key);
+    writer.push_bytes(payload);
+    let mut bytes = writer.into_vec();
     bytes.extend_from_slice(&fnv1a(&bytes).to_le_bytes());
-    write_cache_file(&report_blob_path(&root, kind, key), &bytes);
+    bytes
 }
 
 fn report_blob_path(root: &Path, kind: &str, key: u64) -> PathBuf {
-    root.join("report-v1")
-        .join(format!("{kind}-{key:016x}.bin"))
+    root.join("report-v2")
+        .join(format!("{kind}-{:02x}.bin", key % REPORT_SLOT_COUNT))
 }
 
 /// Little-endian binary encoder for cache payloads.
@@ -608,6 +639,112 @@ mod tests {
 
         assert!(decode_cache(&bytes, &read_line_entry).is_none());
         assert!(decode_cache(&bytes[..4], &read_line_entry).is_none());
+    }
+
+    #[test]
+    fn report_slots_replace_collisions_without_returning_another_key() {
+        let fixture = fs_fixture!({ "cache/.keep": "" });
+        let root = fixture.path("cache");
+        let first_key = 17;
+        let second_key = first_key + super::REPORT_SLOT_COUNT;
+        let path = super::report_blob_path(&root, "claude-daily", first_key);
+        assert_eq!(
+            path,
+            super::report_blob_path(&root, "claude-daily", second_key)
+        );
+        assert_ne!(
+            path,
+            super::report_blob_path(&root, "another-kind", first_key)
+        );
+
+        super::write_cache_file(&path, &super::encode_report_blob(first_key, b"first"));
+        let first = fs::read(&path).unwrap();
+        assert_eq!(
+            super::decode_report_blob(&first, first_key),
+            Some(&b"first"[..])
+        );
+        assert!(super::decode_report_blob(&first, second_key).is_none());
+
+        super::write_cache_file(&path, &super::encode_report_blob(second_key, b"second"));
+        let second = fs::read(&path).unwrap();
+        assert!(super::decode_report_blob(&second, first_key).is_none());
+        assert_eq!(
+            super::decode_report_blob(&second, second_key),
+            Some(&b"second"[..])
+        );
+    }
+
+    #[test]
+    fn report_blobs_reject_corrupt_keys_headers_and_payloads() {
+        let key = 17;
+        let encoded = super::encode_report_blob(key, b"report rows");
+        for len in 0..encoded.len() {
+            assert!(super::decode_report_blob(&encoded[..len], key).is_none());
+        }
+        // Cover magic, version, full key, payload and checksum damage.
+        for offset in [0, 4, 8, 16, encoded.len() - 1] {
+            let mut corrupt = encoded.clone();
+            corrupt[offset] ^= 1;
+            assert!(super::decode_report_blob(&corrupt, key).is_none());
+        }
+        // Even internally checksummed blobs cannot bypass header/key checks.
+        for offset in [0, 4, 8] {
+            let mut corrupt = encoded.clone();
+            corrupt[offset] ^= 1;
+            let checksum_offset = corrupt.len() - 8;
+            let checksum = super::fnv1a(&corrupt[..checksum_offset]);
+            corrupt[checksum_offset..].copy_from_slice(&checksum.to_le_bytes());
+            assert!(super::decode_report_blob(&corrupt, key).is_none());
+        }
+        // The old payload-only format is not accepted in the new directory.
+        let mut legacy = b"report rows".to_vec();
+        legacy.extend_from_slice(&super::fnv1a(&legacy).to_le_bytes());
+        assert!(super::decode_report_blob(&legacy, key).is_none());
+    }
+
+    #[test]
+    fn report_cache_file_count_is_bounded_across_many_keys() {
+        let fixture = fs_fixture!({ "cache/report-v1/legacy.bin": "leave untouched" });
+        let root = fixture.path("cache");
+        let kinds = ["claude-daily", "another-kind"];
+        let key_count = super::REPORT_SLOT_COUNT * 4;
+        for kind in kinds {
+            for key in 0..key_count {
+                let path = super::report_blob_path(&root, kind, key);
+                super::write_cache_file(&path, &super::encode_report_blob(key, &key.to_le_bytes()));
+                let bytes = fs::read(path).unwrap();
+                assert_eq!(
+                    super::decode_report_blob(&bytes, key),
+                    Some(&key.to_le_bytes()[..])
+                );
+            }
+        }
+        let files = fs::read_dir(root.join("report-v2"))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(files.len(), kinds.len() * super::REPORT_SLOT_COUNT as usize);
+        assert!(
+            files
+                .iter()
+                .all(|file| file.path().extension().unwrap() == "bin")
+        );
+        for kind in kinds {
+            for key in key_count - super::REPORT_SLOT_COUNT..key_count {
+                let bytes = fs::read(super::report_blob_path(&root, kind, key)).unwrap();
+                assert_eq!(
+                    super::decode_report_blob(&bytes, key),
+                    Some(&key.to_le_bytes()[..])
+                );
+                assert!(
+                    super::decode_report_blob(&bytes, key - super::REPORT_SLOT_COUNT).is_none()
+                );
+            }
+        }
+        assert_eq!(
+            fs::read(root.join("report-v1/legacy.bin")).unwrap(),
+            b"leave untouched"
+        );
     }
 
     #[test]

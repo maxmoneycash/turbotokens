@@ -8,6 +8,7 @@
 - Restyle README graphics and native SVG exports: drop the glass frame and tracked type, use a flat page, and put terminal captures on a dark field.
 
 - Keep Claude cached reports and live/daemon totals correct after rewrites, truncation, deletion/restoration, and duplicate winners moving between dates. Cache validation includes Unix and Windows change metadata.
+- Bound derived report caches to 256 slots per report kind. Full-key validation turns slot collisions into cache misses; repeated updates no longer leave a file for every old history.
 - Read mutable logs into owned buffers to avoid a crash when a file is truncated during an uncached scan. Uncached scans do more copying; unchanged reports still use both cache layers.
 - Accept whitespace-formatted Claude and Codex JSON records without changing report schemas. Reject unreadable or malformed explicit configuration before printing a report.
 - Isolate daemon IPC under the user's home directory and verify source, timezone, and cost context before reuse. Stop daemons through their verified protocol.

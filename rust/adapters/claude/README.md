@@ -35,6 +35,11 @@ automatic caching is disabled.
 Unix permissions `0700` and `0600`, respectively. `turbotokens doctor` reports
 the selected location. Existing temporary caches are left untouched.
 
+Whole-report caches keep at most 256 blobs per report kind in `report-v2`.
+New report keys replace colliding slots; every read verifies the complete key
+and checksum before using the result. Storage grows with report size, rather
+than the number of history updates. Legacy `report-v1` caches are left untouched.
+
 Daily reports use a resident daemon only when its indexed Claude directories
 match the current configuration. Older daemons without source identity are
 bypassed; restart the daemon after upgrading to use its in-memory index.

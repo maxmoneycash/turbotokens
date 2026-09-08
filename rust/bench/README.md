@@ -145,6 +145,12 @@ the harness finishes the current mutation before stopping. It prints progress
 every 30 seconds. Each child has a 15-second timeout. The executable is copied
 at startup so concurrent builds cannot change the binary under test.
 
+Add `--max-report-cache-files 256` to check that a long run stays within the
+report-cache limit. The harness samples file count and logical byte size every
+30 seconds and at completion, and records the largest sampled file count.
+This limit applies to the single Claude daily report kind used by the harness;
+parse-cache files are outside this limit.
+
 Failures save a directory next to `--output` containing the seed/step evidence,
 before/after synthetic files, cache, executable, harness, and actual stdout/stderr. The
 JSON evidence contains a replay command. Temporary data and owned subprocesses
