@@ -131,10 +131,12 @@ impl ResidentIndex {
                     (entry.date.to_string(), Arc::clone(&entry.project))
                 };
                 if date.as_str() != previous.date.as_ref() {
-                    self.date_entries
-                        .entry(date.clone())
-                        .or_default()
-                        .push(index);
+                    // Added may already have indexed the final winner of this
+                    // batch, or a later replacement may return to an old date.
+                    let indices = self.date_entries.entry(date.clone()).or_default();
+                    if !indices.contains(&index) {
+                        indices.push(index);
+                    }
                 }
                 self.rebuild_date(&date, std::slice::from_ref(&project));
                 if previous.date.as_ref() != date.as_str() || previous.project != project {
@@ -222,6 +224,75 @@ mod tests {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
+        }
+    }
+
+    #[test]
+    fn seeds_duplicate_winners_on_changed_dates_only_once() {
+        let first = usage_line("shared", 20);
+        let next_day = usage_line("shared", 250).replace("2026-07-27", "2026-07-28");
+        let back_again = usage_line("shared", 300);
+        for single_thread in [true, false] {
+            for (history, winner_date, winner_tokens) in [
+                (format!("{first}\n{next_day}\n"), "2026-07-28", 365),
+                (
+                    format!("{first}\n{next_day}\n{back_again}\n"),
+                    "2026-07-27",
+                    415,
+                ),
+            ] {
+                let fixture = fs_fixture!({
+                    "projects/proj-a/session.jsonl": history,
+                    "projects/proj-b/other.jsonl": format!("{}\n", usage_line("unrelated", 5)),
+                });
+                let mut args = shared();
+                args.single_thread = single_thread;
+                let mut index =
+                    ResidentIndex::with_paths(&args, vec![fixture.root().to_path_buf()]);
+                index.seed();
+                let rows = index.daily_rows(None, false);
+                assert_eq!(
+                    rows.iter().map(|row| row.total_tokens()).sum::<u64>(),
+                    winner_tokens + 120
+                );
+                assert!((rows.iter().map(|row| row.total_cost).sum::<f64>() - 0.02).abs() < 1e-12);
+                let winner = index.daily_rows(Some("proj-a"), true);
+                assert_eq!(winner.len(), 1);
+                assert_eq!(winner[0].date.as_deref(), Some(winner_date));
+                assert_eq!(winner[0].total_tokens(), winner_tokens);
+                let unchanged = index.daily_rows(Some("proj-b"), true);
+                assert_eq!(unchanged.len(), 1);
+                assert_eq!(unchanged[0].date.as_deref(), Some("2026-07-27"));
+                assert_eq!(unchanged[0].total_tokens(), 120);
+            }
+        }
+    }
+
+    #[test]
+    fn moving_a_duplicate_winner_back_to_an_earlier_date_does_not_double_count() {
+        let mut history = format!("{}\n", usage_line("shared", 20));
+        let fixture = fs_fixture!({
+            "projects/proj-a/session.jsonl": history.clone(),
+        });
+        let path = fixture.path("projects/proj-a/session.jsonl");
+        let mut index = ResidentIndex::with_paths(&shared(), vec![fixture.root().to_path_buf()]);
+        index.seed();
+        for (date, output) in [
+            ("2026-07-28", 250),
+            ("2026-07-27", 300),
+            ("2026-07-28", 400),
+        ] {
+            history.push_str(&usage_line("shared", output).replace("2026-07-27", date));
+            history.push('\n');
+            std::fs::write(&path, &history).unwrap();
+            index.poll();
+            for grouped in [false, true] {
+                let rows = index.daily_rows(None, grouped);
+                assert_eq!(rows.len(), 1);
+                assert_eq!(rows[0].date.as_deref(), Some(date));
+                assert_eq!(rows[0].total_tokens(), 115 + output);
+                assert!((rows[0].total_cost - 0.01).abs() < 1e-12);
+            }
         }
     }
 
