@@ -575,18 +575,12 @@ impl MetricsServer {
                 let Ok(mut stream) = connection else {
                     continue;
                 };
-                if stream
-                    .set_write_timeout(Some(METRICS_WRITE_TIMEOUT))
-                    .is_err()
-                {
-                    continue;
-                }
                 let payload = lock_body(&shared).clone();
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
                     payload.len(),
                 );
-                let _ = stream.write_all(response.as_bytes());
+                let _ = write_metrics_response(&mut stream, response.as_bytes());
             }
         });
         Ok(Self { body })
@@ -595,6 +589,34 @@ impl MetricsServer {
     pub fn update(&self, body: String) {
         *lock_body(&self.body) = body;
     }
+}
+
+fn write_metrics_response(stream: &mut std::net::TcpStream, mut bytes: &[u8]) -> io::Result<()> {
+    let deadline = Instant::now() + METRICS_WRITE_TIMEOUT;
+    while !bytes.is_empty() {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "metrics response deadline exceeded",
+            ));
+        }
+        // A partial write must not start a fresh timeout. The one serving
+        // thread needs a deadline for the entire response, including retries.
+        stream.set_write_timeout(Some(remaining))?;
+        match stream.write(bytes) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "metrics connection stopped accepting bytes",
+                ));
+            }
+            Ok(written) => bytes = &bytes[written..],
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
 }
 
 fn lock_body(body: &Arc<Mutex<String>>) -> MutexGuard<'_, String> {
